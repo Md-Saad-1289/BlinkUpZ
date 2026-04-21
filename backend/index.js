@@ -15,7 +15,7 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:5174", "http://192.168.0.106:5173", "http://192.168.0.106:5174"],
+    origin: ["http://localhost:5173", "http://localhost:5174", "http://192.168.0.106:5173", "http://192.168.0.106:5174", "https://blinkupz.onrender.com"],
     credentials: true
   }
 });
@@ -24,7 +24,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://192.168.0.106:5173', 'http://192.168.0.106:5174'],
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://192.168.0.106:5173', 'http://192.168.0.106:5174', 'https://blinkupz.onrender.com'],
     credentials: true
 }));
 app.use(express.json());
