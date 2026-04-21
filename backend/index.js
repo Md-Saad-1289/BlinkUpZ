@@ -10,6 +10,7 @@ import userRouter from "./routes/user.route.js";
 import chatRouter from "./routes/chat.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import path from "path";
 
 const app = express();
 const server = createServer(app);
