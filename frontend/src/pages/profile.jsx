@@ -1,0 +1,173 @@
+import React, { useState, useRef, useEffect } from "react"
+import { useSelector, useDispatch } from "react-redux"
+import { IoCameraOutline } from "react-icons/io5"
+import { useNavigate } from "react-router-dom"
+import axios from "axios"
+import { setUserData } from "../redux/userSlice"
+import { serverUrl } from "../config.js"
+import { FaArrowLeft, FaUser, FaEnvelope, FaFloppyDisk, FaSpinner } from "react-icons/fa6"
+
+function Profile() {
+  const { userData } = useSelector((state) => state.user)
+  const dispatch = useDispatch()
+  const navigate = useNavigate()
+
+  const [name, setName] = useState(userData?.name || "")
+  const [frontendImage, setFrontendImage] = useState(userData?.image || "/default-avatar.svg")
+  const [backendImage, setBackendImage] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
+
+  const imageRef = useRef()
+
+  useEffect(() => {
+    setName(userData?.name || "")
+    setFrontendImage(userData?.image || "/default-avatar.svg")
+  }, [userData])
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setBackendImage(file)
+    setFrontendImage(URL.createObjectURL(file))
+  }
+
+  const handleProfile = async (e) => {
+    e.preventDefault()
+    setSaving(true)
+    setError("")
+    setSuccess("")
+    try {
+      const formData = new FormData()
+      formData.append("name", name)
+      if (backendImage) formData.append("image", backendImage)
+
+      const result = await axios.post(`${serverUrl}/api/user/profile`, formData, {
+        withCredentials: true,
+      })
+
+      dispatch(setUserData(result.data))
+      setSuccess("Profile updated successfully!")
+      setTimeout(() => setSuccess(""), 3000)
+    } catch (err) {
+      console.error("Profile update failed:", err)
+      setError(err.response?.data?.message || "Failed to update profile. Please try again.")
+      setTimeout(() => setError(""), 5000)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 flex items-center justify-center px-4 py-12">
+      <button
+        onClick={() => navigate('/home')}
+        className="absolute top-6 left-6 cursor-pointer text-cyan-400 hover:text-cyan-300 transition p-2 hover:bg-slate-800 rounded-lg"
+      >
+        <FaArrowLeft className="w-6 h-6" />
+      </button>
+
+      <form
+        onSubmit={handleProfile}
+        className="w-full max-w-lg rounded-3xl bg-slate-900/95 p-8 shadow-2xl shadow-cyan-900/30 backdrop-blur-md text-white"
+      >
+        {error && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-400 text-sm text-center">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-xl text-green-400 text-sm text-center">
+            {success}
+          </div>
+        )}
+
+        <h1 className="text-3xl font-semibold text-center mb-8 flex items-center justify-center gap-2">
+          <FaUser className="text-cyan-400 w-8 h-8" />
+          Profile Settings
+        </h1>
+
+        <div className="flex flex-col items-center gap-5">
+          <div
+            className="relative cursor-pointer group"
+            onClick={() => imageRef.current.click()}
+          >
+            <img
+              src={frontendImage}
+              alt="Profile"
+              className="w-32 h-32 rounded-full object-cover border-4 border-cyan-500 group-hover:border-cyan-300 transition"
+            />
+            <div className="absolute bottom-2 right-2 rounded-full bg-cyan-500 p-3 border-2 border-slate-900 group-hover:bg-cyan-400 transition">
+              <IoCameraOutline className="text-white w-5 h-5" />
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              ref={imageRef}
+              hidden
+              onChange={handleImageChange}
+            />
+          </div>
+
+          <div className="text-center">
+            <h2 className="text-2xl font-semibold">{userData?.username || "Username"}</h2>
+            <div className="flex items-center justify-center gap-2 mt-1 text-slate-400">
+              <FaEnvelope className="w-4 h-4" />
+              <p>{userData?.email}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 space-y-5">
+          <div>
+            <label className="flex text-slate-300 font-semibold mb-2 items-center gap-2">
+              <FaUser className="w-4 h-4 text-cyan-400" />
+              Username
+            </label>
+            <input
+              type="text"
+              value={userData?.username || ""}
+              readOnly
+              className="w-full rounded-2xl bg-slate-700/50 p-4 text-white outline-none border border-slate-600 cursor-not-allowed"
+            />
+          </div>
+
+          <div>
+            <label className="flex text-slate-300 font-semibold mb-2 items-center gap-2">
+              <FaUser className="w-4 h-4 text-cyan-400" />
+              Full Name
+            </label>
+            <input
+              type="text"
+              placeholder="Enter your display name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full rounded-2xl bg-slate-800 p-4 text-white outline-none placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 border border-slate-700 transition"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="mt-8 w-full rounded-2xl bg-cyan-500 py-4 text-base font-semibold text-white transition hover:bg-cyan-600 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        >
+          {saving ? (
+            <>
+              <FaSpinner className="w-5 h-5 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              <FaFloppyDisk className="w-5 h-5" />
+              Save Changes
+            </>
+          )}
+        </button>
+      </form>
+    </div>
+  )
+}
+
+export default Profile

@@ -1,0 +1,108 @@
+import React, { useState } from "react";
+// import { useSelector, useDispatch } from "react-redux";
+// import { useNavigate } from "react-router-dom";
+// import axios from "axios";
+// import { serverUrl } from "../main";
+// import { setUserData } from "../redux/user.Slice";
+
+function Profile() {
+//   const dispatch = useDispatch();
+//   const navigate = useNavigate();
+//   const { userData } = useSelector((state) => state.user);
+
+//   const [username, setUsername] = useState(userData?.username || "");
+//   const [image, setImage] = useState(null);
+//   const [preview, setPreview] = useState(userData?.img || "/default-avatar.png");
+//   const [loading, setLoading] = useState(false);
+//   const [error, setError] = useState("");
+
+  // if (!userData) return <p className="text-white text-center mt-10">Loading profile...</p>;
+
+  // const handleImageChange = (e) => {
+  //   const file = e.target.files[0];
+  //   if (file) {
+  //     setImage(file);
+  //     setPreview(URL.createObjectURL(file));
+  //   }
+  // };
+
+  // const handleUpdate = async () => {
+  //   setLoading(true);
+  //   setError("");
+
+  //   try {
+  //     const formData = new FormData();
+  //     formData.append("username", username);
+  //     if (image) formData.append("img", image);
+
+  //     const res = await axios.put(`${serverUrl}/api/user/update`, formData, {
+  //       withCredentials: true,
+  //       headers: { "Content-Type": "multipart/form-data" },
+  //     });
+
+  //     dispatch(setUserData(res.data));
+  //     setLoading(false);
+  //   } catch (err) {
+  //     console.error(err);
+  //     setError(err.response?.data?.message || "Update failed");
+  //     setLoading(false);
+  //   }
+  // };
+
+  // const handleLogout = async () => {
+  //   try {
+  //     await axios.get(`${serverUrl}/api/auth/logout`, { withCredentials: true });
+  //     dispatch(setUserData(null));
+  //     navigate("/login");
+  //   } catch (err) {
+  //     console.error("Logout failed:", err);
+  //   }
+  // };
+
+  return (
+    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6">
+      <div className="bg-gray-800 rounded-xl shadow-lg p-8 w-full max-w-md text-white">
+        <h1 className="text-2xl font-bold mb-4 text-center">Your Profile</h1>
+
+        <div className="flex flex-col items-center gap-4">
+          <img
+            src={preview}
+            alt="Profile"
+            className="w-24 h-24 rounded-full object-cover border-2 border-cyan-500"
+          />
+          <input type="file" accept="image/*" onChange={handleImageChange} className="text-sm" />
+        </div>
+
+        <div className="flex flex-col mt-4 gap-3">
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="p-3 rounded-md bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            placeholder="Username"
+          />
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+        </div>
+
+        <button
+          onClick={handleUpdate}
+          disabled={loading}
+          className={`mt-4 w-full p-3 rounded-md font-semibold transition ${
+            loading ? "bg-gray-500 cursor-not-allowed" : "bg-cyan-500 hover:bg-cyan-600"
+          }`}
+        >
+          {loading ? "Updating..." : "Update Profile"}
+        </button>
+
+        <button
+          onClick={handleLogout}
+          className="mt-2 w-full p-3 rounded-md font-semibold bg-red-500 hover:bg-red-600 transition"
+        >
+          Logout
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default Profile;

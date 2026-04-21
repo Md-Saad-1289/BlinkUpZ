@@ -1,0 +1,67 @@
+import dotenv from "dotenv";
+dotenv.config();
+
+import express from "express";
+import cookieParser from "cookie-parser";
+import connectDB from "./config/db.js";
+import authRouter from "./routes/auth.js";
+import cors from "cors";
+import userRouter from "./routes/user.route.js";
+import chatRouter from "./routes/chat.js";
+import { createServer } from "http";
+import { Server } from "socket.io";
+
+const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: ["http://localhost:5173", "http://localhost:5174", "http://192.168.0.106:5173", "http://192.168.0.106:5174"],
+    credentials: true
+  }
+});
+
+const PORT = process.env.PORT || 5000;
+
+// Middleware
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://localhost:5174', 'http://192.168.0.106:5173', 'http://192.168.0.106:5174'],
+    credentials: true
+}));
+app.use(express.json());
+app.use(cookieParser());
+
+// Routes
+app.use("/api/auth", authRouter);
+app.use("/api/user", userRouter);
+app.use("/api/chat", chatRouter);
+
+// Socket.io connection
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  socket.on('join_chat', (chatId) => {
+    socket.join(chatId);
+    console.log(`User ${socket.id} joined chat ${chatId}`);
+  });
+
+  socket.on('leave_chat', (chatId) => {
+    socket.leave(chatId);
+    console.log(`User ${socket.id} left chat ${chatId}`);
+  });
+
+  socket.on('send_message', (data) => {
+    const { chatId, message } = data;
+    io.to(chatId).emit('receive_message', message);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
+
+// Start server after DB connection
+connectDB().then(() => {
+    server.listen(PORT, () => {
+        console.log(`✅ Server running on port ${PORT}`);
+    });
+}).catch(err => console.error("DB connection failed:", err));
