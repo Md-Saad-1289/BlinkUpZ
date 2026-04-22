@@ -44,8 +44,11 @@ app.use("/api/chat", chatRouter);
 // Serve static frontend files for SPA fallback (for direct URL access)
 app.use(express.static(path.join(__dirname, "dist")));
 
-// SPA fallback - must be last route
-app.use((req, res) => {
+// SPA fallback - must be last route (only for non-API routes)
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return next();
+  }
   res.sendFile(path.join(__dirname, "dist/index.html"));
 });
 
