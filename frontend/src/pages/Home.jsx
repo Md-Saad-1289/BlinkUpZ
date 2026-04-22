@@ -57,7 +57,7 @@ function Home() {
               />
               <div className="absolute -bottom-0.5 -right-0.5 w-2 sm:w-3 h-2 sm:h-3 bg-cyan-500 rounded-full border-2 border-slate-900"></div>
             </div>
-            <div className="hidden sm:block">
+            <div className="block">
               <h1 className="text-lg sm:text-xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-300 bg-clip-text text-transparent">BlinkUpZ</h1>
               <p className="text-[10px] text-slate-500 -mt-0.5">Friends. Fast. Fun.</p>
             </div>

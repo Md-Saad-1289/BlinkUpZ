@@ -49,9 +49,9 @@ function SignUp() {
             alt="BlinkUpZ Logo"
             className="h-14 w-14 sm:h-16 sm:w-16 object-contain rounded-2xl sm:rounded-3xl"
           />
-          <h1 className="mt-4 text-2xl sm:text-3xl font-semibold text-white">Create your account</h1>
+          <h1 className="mt-4 text-2xl sm:text-3xl font-semibold text-white">BlinkUpZ</h1>
           <p className="mt-2 text-xs sm:text-sm text-slate-400 text-center">
-            Join BlinkUpZ and manage your profile securely.
+            Create your account to start chatting
           </p>
         </div>
 

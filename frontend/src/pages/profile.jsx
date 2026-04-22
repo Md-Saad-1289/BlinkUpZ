@@ -91,10 +91,23 @@ function Profile() {
           </div>
         )}
 
-        <h1 className="text-2xl sm:text-3xl font-semibold text-center mb-6 sm:mb-8 flex items-center justify-center gap-2">
-          <FaUser className="text-cyan-400 w-6 h-6 sm:w-8 sm:h-8" />
-          Profile Settings
-        </h1>
+        {/* Logo & App Name */}
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <img
+            src="/logo.png"
+            alt="BlinkUpZ Logo"
+            className="h-8 w-8 object-contain rounded-lg shadow-lg shadow-cyan-500/20"
+          />
+          <div>
+            <h1 className="text-lg font-bold bg-gradient-to-r from-cyan-400 to-cyan-300 bg-clip-text text-transparent">BlinkUpZ</h1>
+            <p className="text-[8px] text-slate-500 -mt-0.5">Profile Settings</p>
+          </div>
+        </div>
+
+        <h2 className="text-xl sm:text-2xl font-semibold text-center mb-4 sm:mb-6 flex items-center justify-center gap-2">
+          <FaUser className="text-cyan-400 w-5 h-5 sm:w-6 sm:h-6" />
+          My Profile
+        </h2>
 
         <div className="flex flex-col items-center gap-4 sm:gap-5">
           <div
