@@ -36,6 +36,13 @@ app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/chat", chatRouter);
 
+// Serve static frontend files for all non-API routes (SPA fallback)
+app.use(express.static(path.join(__dirname, "../frontend/dist")));
+
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
+});
+
 // Socket.io connection
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
