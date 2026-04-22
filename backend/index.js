@@ -41,16 +41,11 @@ app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/chat", chatRouter);
 
-// Explicit route for root
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist/index.html"));
-});
-
-// Serve static frontend files for SPA fallback (for direct URL access)
+// Serve static frontend files
 app.use(express.static(path.join(__dirname, "dist")));
 
-// SPA fallback for all other routes (must be last)
-app.use((req, res) => {
+// SPA fallback - use app.get with wildcard
+app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "dist/index.html"));
 });
 
