@@ -44,8 +44,8 @@ app.use("/api/chat", chatRouter);
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, "dist")));
 
-// SPA fallback - use app.get with wildcard
-app.get("*", (req, res) => {
+// SPA fallback - catch all routes that aren't API
+app.get(/^\/(?!api\/).*/, (req, res) => {
   res.sendFile(path.join(__dirname, "dist/index.html"));
 });
 
