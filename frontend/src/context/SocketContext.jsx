@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { useSelector, useDispatch } from 'react-redux';
 import { serverUrl } from '../config.js';
 import { setOnlineUsers } from '../redux/userSlice.js';
+import { showLocalNotification } from '../utils/notifications.js';
 
 const SocketContext = createContext();
 
@@ -34,6 +35,22 @@ export const SocketProvider = ({ children }) => {
 
       newSocket.on('user_offline', (userId) => {
         dispatch(setOnlineUsers({ userId, status: 'offline' }));
+      });
+
+      // Handle new message notification
+      newSocket.on('new_message_notification', (data) => {
+        const { message, chatId } = data;
+        // Show local notification if not in the current chat
+        const currentChatId = window.location.pathname.split('/').pop();
+        if (currentChatId !== chatId) {
+          const senderName = message.sender?.name || message.sender?.username || 'Someone';
+          showLocalNotification(
+            senderName,
+            message.messageType === 'image' ? 'Sent an image' : message.content,
+            '/logo.png',
+            () => window.location.href = `/home?chat=${chatId}`
+          );
+        }
       });
 
       return () => {

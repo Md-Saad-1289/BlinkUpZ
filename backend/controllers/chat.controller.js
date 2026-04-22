@@ -161,3 +161,79 @@ export const markMessagesSeen = async (req, res) => {
     res.status(500).json({ message: "Failed to mark messages as seen" });
   }
 };
+
+// Delete a message (soft delete)
+export const deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.userId;
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    // Only sender can delete their message
+    if (message.sender.toString() !== userId) {
+      return res.status(403).json({ message: "You can only delete your own messages" });
+    }
+
+    // Soft delete - mark as deleted but keep in DB
+    message.deleted = true;
+    message.content = "This message was deleted";
+    message.messageType = "text";
+    await message.save();
+
+    res.status(200).json({ message: "Message deleted", deletedMessage: message });
+  } catch (error) {
+    console.error("deleteMessage error:", error);
+    res.status(500).json({ message: "Failed to delete message" });
+  }
+};
+
+// Edit a message
+export const editMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { content } = req.body;
+    const userId = req.userId;
+
+    if (!content || content.trim() === "") {
+      return res.status(400).json({ message: "Content is required" });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    // Only sender can edit their message
+    if (message.sender.toString() !== userId) {
+      return res.status(403).json({ message: "You can only edit your own messages" });
+    }
+
+    // Can't edit deleted messages
+    if (message.deleted) {
+      return res.status(400).json({ message: "Cannot edit a deleted message" });
+    }
+
+    // Can't edit image messages
+    if (message.messageType === "image") {
+      return res.status(400).json({ message: "Cannot edit image messages" });
+    }
+
+    message.content = content;
+    message.edited = true;
+    message.editedAt = new Date();
+    await message.save();
+
+    const populatedMessage = await Message.findById(messageId)
+      .populate("sender", "username name image")
+      .populate("replyTo", "content sender");
+
+    res.status(200).json({ message: "Message edited", editedMessage: populatedMessage });
+  } catch (error) {
+    console.error("editMessage error:", error);
+    res.status(500).json({ message: "Failed to edit message" });
+  }
+};

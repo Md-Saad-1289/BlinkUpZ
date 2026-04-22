@@ -44,7 +44,7 @@ function Home() {
             {/* Mobile menu toggle */}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="md:hidden p-2 hover:bg-slate-800/60 rounded-lg transition text-cyan-400"
+              className="lg:hidden p-2 hover:bg-slate-800/60 rounded-lg transition text-cyan-400"
             >
               {sidebarOpen ? <FaXmark className="w-5 h-5" /> : <FaBars className="w-5 h-5" />}
             </button>
@@ -92,18 +92,18 @@ function Home() {
         {/* Mobile Overlay */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-black/50 z-20 md:hidden"
+            className="fixed inset-0 bg-black/50 z-20 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
         {/* Sidebar - Chat List - Responsive */}
         <aside className={`
-          absolute md:relative md:flex
-          ${sidebarOpen ? 'left-0 right-0' : '-left-full'}
-          top-0 h-full md:h-auto
-          w-full md:w-80 md:w-72 lg:w-80
-          bg-slate-900/95 md:bg-slate-900/60 
+          fixed lg:relative lg:flex
+          ${sidebarOpen ? 'left-0' : '-left-full lg:left-0'}
+          top-0 h-full lg:h-auto
+          w-80 lg:w-72 xl:w-80
+          bg-slate-900/95 lg:bg-slate-900/60 
           border-r border-slate-700/50 
           flex flex-col backdrop-blur-sm
           transition-all duration-300 ease-in-out

@@ -110,15 +110,18 @@ const ChatList = () => {
                         alt={otherParticipant?.username}
                         className="w-10 sm:w-12 h-10 sm:h-12 rounded-full object-cover border-2 border-slate-700 shadow-md"
                       />
-                      <span className={`absolute bottom-0 right-0 w-2.5 sm:w-3 h-2.5 sm:h-3 border-2 border-slate-900 rounded-full ${isOnline ? 'bg-green-500' : 'bg-slate-500'}`}></span>
+                      <span className={`absolute bottom-0 right-0 w-3 sm:w-3.5 h-3 sm:h-3.5 border-2 border-slate-900 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-slate-500'}`}></span>
+                      {isOnline && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-2 sm:w-2.5 h-2 sm:h-2.5 bg-green-400 rounded-full border border-slate-900"></span>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <h3 className="font-semibold text-xs sm:text-sm text-slate-100 truncate">
                           {otherParticipant?.name || otherParticipant?.username}
                         </h3>
-                        <span className="text-[9px] sm:text-[10px] text-slate-500">
-                          {formatMessageTime(chat.lastMessage?.createdAt || chat.updatedAt)}
+                        <span className={`text-[9px] sm:text-[10px] font-medium ${isOnline ? 'text-green-400' : 'text-slate-500'}`}>
+                          {isOnline ? 'Online' : formatMessageTime(chat.lastMessage?.createdAt || chat.updatedAt)}
                         </span>
                       </div>
                       <p className="text-[10px] sm:text-xs text-slate-400 truncate mt-0.5">

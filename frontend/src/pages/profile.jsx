@@ -4,7 +4,8 @@ import { IoCameraOutline } from "react-icons/io5"
 import { useNavigate } from "react-router-dom"
 import api from "../api.js"
 import { setUserData } from "../redux/userSlice"
-import { FaArrowLeft, FaUser, FaEnvelope, FaFloppyDisk, FaSpinner } from "react-icons/fa6"
+import { FaArrowLeft, FaUser, FaEnvelope, FaFloppyDisk, FaSpinner, FaBell, FaBellSlash } from "react-icons/fa6"
+import { enableNotifications, isPushSupported, getNotificationPermission } from "../utils/notifications.js"
 
 function Profile() {
   const { userData } = useSelector((state) => state.user)
@@ -17,12 +18,22 @@ function Profile() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false)
+  const [notificationSupported, setNotificationSupported] = useState(true)
 
   const imageRef = useRef()
 
   useEffect(() => {
     setName(userData?.name || "")
     setFrontendImage(userData?.image || "/default-avatar.svg")
+    
+    // Check notification status
+    if (isPushSupported()) {
+      setNotificationSupported(true)
+      setNotificationsEnabled(getNotificationPermission() === 'granted')
+    } else {
+      setNotificationSupported(false)
+    }
   }, [userData])
 
   const handleImageChange = (e) => {
@@ -164,6 +175,46 @@ function Profile() {
             </>
           )}
         </button>
+
+        {/* Notification Settings */}
+        {notificationSupported && (
+          <div className="mt-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {notificationsEnabled ? (
+                  <FaBell className="w-5 h-5 text-cyan-400" />
+                ) : (
+                  <FaBellSlash className="w-5 h-5 text-slate-400" />
+                )}
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Push Notifications</h3>
+                  <p className="text-xs text-slate-400">
+                    {notificationsEnabled ? "Enabled - You'll receive message alerts" : "Disabled - Enable to get notified"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (notificationsEnabled) {
+                    // Already enabled, do nothing or could offer to disable
+                    setNotificationsEnabled(false)
+                  } else {
+                    const granted = await enableNotifications()
+                    setNotificationsEnabled(granted)
+                  }
+                }}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  notificationsEnabled
+                    ? "bg-slate-600 text-slate-300 hover:bg-slate-500"
+                    : "bg-cyan-500 text-white hover:bg-cyan-600"
+                }`}
+              >
+                {notificationsEnabled ? "Enabled" : "Enable"}
+              </button>
+            </div>
+          </div>
+        )}
       </form>
     </div>
   )

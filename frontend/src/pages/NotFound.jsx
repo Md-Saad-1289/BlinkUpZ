@@ -8,6 +8,19 @@ const NotFound = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 flex items-center justify-center px-4">
       <div className="text-center">
+        {/* Logo & App Name */}
+        <div className="flex items-center justify-center gap-3 mb-8">
+          <img
+            src="/logo.png"
+            alt="BlinkUpZ Logo"
+            className="h-12 w-12 object-contain rounded-xl shadow-lg shadow-cyan-500/20"
+          />
+          <div className="text-left">
+            <h1 className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-300 bg-clip-text text-transparent">BlinkUpZ</h1>
+            <p className="text-[10px] text-slate-500 -mt-0.5">Friends. Fast. Fun.</p>
+          </div>
+        </div>
+
         <div className="flex justify-center mb-6">
           <FaTriangleExclamation className="w-24 h-24 text-red-500 opacity-80" />
         </div>

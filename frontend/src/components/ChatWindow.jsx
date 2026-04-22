@@ -5,7 +5,9 @@ import { addMessage, setReplyingTo, markMessageSeen } from "../redux/chatSlice";
 import useGetMessages from "../Hooks/useGetMessages";
 import MessageInput from "./MessageInput";
 import ImageViewer from "./ImageViewer";
-import { FaPhone, FaVideo, FaEllipsisVertical, FaCheck, FaCheckDouble, FaReply } from "react-icons/fa6";
+import { FaPhone, FaVideo, FaEllipsisVertical, FaCheck, FaCheckDouble, FaReply, FaTrash, FaPencil } from "react-icons/fa6";
+import axios from "axios";
+import { serverUrl } from "../config";
 
 // Helper to format date
 const formatMessageDate = (date) => {
@@ -37,8 +39,39 @@ const ChatWindow = () => {
   const { userData, onlineUsers } = useSelector((state) => state.user);
   const messagesEndRef = useRef(null);
   const [viewingImage, setViewingImage] = useState(null);
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [showMessageMenu, setShowMessageMenu] = useState(null); // messageId for menu
 
   useGetMessages(currentChat?._id);
+
+  // Delete message function
+  const handleDeleteMessage = async (messageId) => {
+    try {
+      await axios.delete(`${serverUrl}/api/chat/messages/${messageId}`, {
+        withCredentials: true
+      });
+      // Update local state - mark as deleted
+      dispatch({ type: 'chat/updateMessageContent', payload: { messageId, content: 'This message was deleted' } });
+      setShowMessageMenu(null);
+    } catch (error) {
+      console.error("Failed to delete message:", error);
+    }
+  };
+
+  // Edit message function
+  const handleEditMessage = async (messageId, newContent) => {
+    try {
+      const response = await axios.put(`${serverUrl}/api/chat/messages/${messageId}`, 
+        { content: newContent },
+        { withCredentials: true }
+      );
+      // Update local state
+      dispatch({ type: 'chat/updateMessageContent', payload: { messageId, content: newContent, edited: true } });
+      setEditingMessage(null);
+    } catch (error) {
+      console.error("Failed to edit message:", error);
+    }
+  };
 
   // Get other participant
   const otherParticipant = currentChat?.participants?.find(
@@ -137,26 +170,23 @@ const ChatWindow = () => {
               <img
                 src={otherParticipant?.image || "/default-avatar.svg"}
                 alt={otherParticipant?.username}
-                className="w-10 sm:w-12 sm:w-14 h-10 sm:h-12 sm:h-14 rounded-xl sm:rounded-2xl object-cover border-2 border-cyan-500/50 shadow-lg shadow-cyan-500/20"
+                className="w-10 sm:w-14 h-10 sm:h-14 rounded-xl sm:rounded-2xl object-cover border-2 border-cyan-500/50 shadow-lg shadow-cyan-500/20"
               />
               <span className={`absolute bottom-0 right-0 w-2.5 sm:w-3.5 h-2.5 sm:h-3.5 border-2 sm:border-3 border-slate-900 rounded-full ${isOtherOnline ? 'bg-green-500' : 'bg-slate-500'}`}></span>
             </div>
             <div>
-              <h2 className="font-bold text-white text-sm sm:text-base sm:text-lg">
+              <h2 className="font-bold text-white text-sm sm:text-lg">
                 {otherParticipant?.name || otherParticipant?.username}
               </h2>
               <p className={`text-[10px] sm:text-xs flex items-center gap-1 font-medium ${isOtherOnline ? 'text-green-400/90' : 'text-slate-500'}`}>
                 {isOtherOnline ? (
                   <>
                     <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 bg-green-400 rounded-full animate-pulse"></span>
-                    <span className="hidden sm:inline">Online</span>
-                    <span className="sm:hidden">Active</span>
+                    <span>Online</span>
                   </>
                 ) : (
                   <span>Offline</span>
                 )}
-                <span className="hidden sm:inline">Online</span>
-                <span className="sm:hidden">Active</span>
               </p>
             </div>
           </div>
@@ -235,7 +265,12 @@ const ChatWindow = () => {
                           : "bg-gradient-to-br from-slate-700/90 to-slate-750/90 text-slate-100 rounded-bl-sm border-slate-600/30 shadow-slate-900/30 hover:shadow-lg"
                       }`}
                     >
-                      {message.messageType === "image" ? (
+                      {/* Deleted message */}
+                      {message.deleted ? (
+                        <p className="text-sm sm:text-base leading-relaxed italic text-slate-400 opacity-60">
+                          <span className="line-through">{message.content}</span>
+                        </p>
+                      ) : message.messageType === "image" ? (
                         <div 
                           className="relative cursor-pointer"
                           onClick={() => setViewingImage(message.content)}
@@ -252,29 +287,76 @@ const ChatWindow = () => {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                        <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
+                          {message.content}
+                          {message.edited && <span className="text-[10px] ml-1 opacity-60">(edited)</span>}
+                        </p>
                       )}
                       
-                      {/* Reply Button - appears on hover */}
-                      <button
-                        onClick={() => dispatch(setReplyingTo(message))}
-                        className={`absolute top-1/2 -translate-y-1/2 ${isOwn ? '-left-10' : '-right-10'} p-2 rounded-full bg-slate-700/80 text-slate-400 hover:text-cyan-400 hover:bg-slate-600/80 opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-lg`}
-                      >
-                        <FaReply className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Action buttons - only show for own non-deleted messages */}
+                      {isOwn && !message.deleted && (
+                        <div className={`absolute top-1/2 -translate-y-1/2 ${isOwn ? '-left-16' : '-right-16'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200`}>
+                          {/* Reply Button */}
+                          <button
+                            onClick={() => dispatch(setReplyingTo(message))}
+                            className="p-2 rounded-full bg-slate-700/80 text-slate-400 hover:text-cyan-400 hover:bg-slate-600/80 shadow-lg"
+                          >
+                            <FaReply className="w-3.5 h-3.5" />
+                          </button>
+                          {/* Edit Button */}
+                          {message.messageType !== "image" && (
+                            <button
+                              onClick={() => setEditingMessage(message)}
+                              className="p-2 rounded-full bg-slate-700/80 text-slate-400 hover:text-yellow-400 hover:bg-slate-600/80 shadow-lg"
+                            >
+                              <FaPencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {/* Delete Button */}
+                          <button
+                            onClick={() => setShowMessageMenu(message._id)}
+                            className="p-2 rounded-full bg-slate-700/80 text-slate-400 hover:text-red-400 hover:bg-slate-600/80 shadow-lg"
+                          >
+                            <FaTrash className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
                       
                       {/* Subtle shine effect for own messages */}
-                      {isOwn && (
+                      {isOwn && !message.deleted && (
                         <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/5 to-white/0 pointer-events-none" />
                       )}
                     </div>
+                    
+                    {/* Delete/Edit Menu */}
+                    {showMessageMenu === message._id && (
+                      <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} top-full mt-1 bg-slate-800/95 backdrop-blur-md rounded-xl shadow-xl border border-slate-700/50 py-2 z-50 min-w-[120px]`}>
+                        <button
+                          onClick={() => {
+                            setEditingMessage(message);
+                            setShowMessageMenu(null);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700/50 hover:text-yellow-400 flex items-center gap-2"
+                        >
+                          <FaPencil className="w-3.5 h-3.5" />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteMessage(message._id)}
+                          className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700/50 hover:text-red-400 flex items-center gap-2"
+                        >
+                          <FaTrash className="w-3.5 h-3.5" />
+                          Delete
+                        </button>
+                      </div>
+                    )}
                     
                     {/* Timestamp and Read Status */}
                     <div className={`flex items-center gap-1.5 px-1 text-[10px] ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
                       <span className="text-slate-500 font-medium">
                         {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                      {isOwn && (
+                      {isOwn && !message.deleted && (
                         <span className={`text-xs ${message.read ? "text-cyan-400" : "text-slate-500"}`}>
                           <FaCheckDouble className="w-3 h-3" />
                         </span>
@@ -300,6 +382,40 @@ const ChatWindow = () => {
           image={viewingImage} 
           onClose={() => setViewingImage(null)} 
         />
+      )}
+
+      {/* Edit Message Modal */}
+      {editingMessage && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-700/50 w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Edit Message</h3>
+            <textarea
+              defaultValue={editingMessage.content}
+              className="w-full bg-slate-700/50 text-white rounded-xl p-4 border border-slate-600/50 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 outline-none resize-none"
+              rows={4}
+              id="editMessageText"
+            />
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => setEditingMessage(null)}
+                className="px-4 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-700/50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const newContent = document.getElementById('editMessageText').value;
+                  if (newContent.trim()) {
+                    handleEditMessage(editingMessage._id, newContent);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-cyan-500 text-white hover:bg-cyan-600 transition shadow-lg shadow-cyan-500/20"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

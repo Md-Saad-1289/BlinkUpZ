@@ -34,6 +34,16 @@ const chatSlice = createSlice({
         message.read = true;
       }
     },
+    updateMessageContent: (state, action) => {
+      const { messageId, content, edited } = action.payload;
+      const message = state.messages.find(m => m._id === messageId);
+      if (message) {
+        message.content = content;
+        if (edited !== undefined) {
+          message.edited = edited;
+        }
+      }
+    },
     setLoading: (state, action) => {
       state.loading = action.payload;
     },
@@ -43,5 +53,5 @@ const chatSlice = createSlice({
   },
 });
 
-export const { setChats, setCurrentChat, setMessages, addMessage, setReplyingTo, markMessageSeen, setLoading, setError } = chatSlice.actions;
+export const { setChats, setCurrentChat, setMessages, addMessage, setReplyingTo, markMessageSeen, updateMessageContent, setLoading, setError } = chatSlice.actions;
 export default chatSlice.reducer;
