@@ -69,6 +69,7 @@ export const getMessages = async (req, res) => {
 
     const messages = await Message.find({ chat: chatId })
       .populate("sender", "username name image")
+      .populate("replyTo", "content sender")
       .sort({ createdAt: 1 });
 
     res.status(200).json(messages);
@@ -82,7 +83,7 @@ export const getMessages = async (req, res) => {
 export const sendMessage = async (req, res) => {
   try {
     const { chatId } = req.params;
-    const { content, messageType = "text" } = req.body;
+    const { content, messageType = "text", replyTo } = req.body;
     const userId = req.userId;
 
     if (!chatId || (!content && !req.file)) {
@@ -93,6 +94,14 @@ export const sendMessage = async (req, res) => {
     const chat = await Chat.findById(chatId);
     if (!chat || !chat.participants.includes(userId)) {
       return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Verify replyTo message exists if provided
+    if (replyTo) {
+      const replyMessage = await Message.findById(replyTo);
+      if (!replyMessage || replyMessage.chat.toString() !== chatId) {
+        return res.status(400).json({ message: "Invalid reply message" });
+      }
     }
 
     let messageContent = content || "";
@@ -110,18 +119,45 @@ export const sendMessage = async (req, res) => {
       chat: chatId,
       sender: userId,
       content: messageContent,
-      messageType: messageTypeFinal
+      messageType: messageTypeFinal,
+      replyTo: replyTo || null
     });
 
     // Update chat's last message
     await Chat.findByIdAndUpdate(chatId, { lastMessage: message._id });
 
     const populatedMessage = await Message.findById(message._id)
-      .populate("sender", "username name image");
+      .populate("sender", "username name image")
+      .populate("replyTo", "content sender");
 
     res.status(201).json(populatedMessage);
   } catch (error) {
     console.error("sendMessage error:", error);
     res.status(500).json({ message: "Failed to send message" });
+  }
+};
+
+// Mark messages as seen
+export const markMessagesSeen = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.userId;
+
+    // Verify user is participant
+    const chat = await Chat.findById(chatId);
+    if (!chat || !chat.participants.includes(userId)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Mark all unread messages from other users as seen
+    await Message.updateMany(
+      { chat: chatId, sender: { $ne: userId }, read: false },
+      { $set: { read: true } }
+    );
+
+    res.status(200).json({ message: "Messages marked as seen" });
+  } catch (error) {
+    console.error("markMessagesSeen error:", error);
+    res.status(500).json({ message: "Failed to mark messages as seen" });
   }
 };

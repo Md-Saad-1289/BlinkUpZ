@@ -54,8 +54,19 @@ app.use((req, res) => {
 });
 
 // Socket.io connection
+const userSocketMap = new Map(); // userId -> socketId
+
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
+
+  // User goes online
+  socket.on('go_online', (userId) => {
+    userSocketMap.set(userId, socket.id);
+    socket.userId = userId;
+    // Broadcast to all users that this user is online
+    io.emit('user_online', userId);
+    console.log(`User ${userId} is now online`);
+  });
 
   socket.on('join_chat', (chatId) => {
     socket.join(chatId);
@@ -68,11 +79,38 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_message', (data) => {
-    const { chatId, message } = data;
+    const { chatId, message, senderId } = data;
+    // Broadcast to everyone in the chat
     io.to(chatId).emit('receive_message', message);
+    
+    // Send notification to online recipient
+    const recipientId = message.recipientId;
+    if (recipientId && userSocketMap.has(recipientId)) {
+      const recipientSocket = userSocketMap.get(recipientId);
+      io.to(recipientSocket).emit('new_message_notification', {
+        chatId,
+        message
+      });
+    }
+  });
+
+  // Mark message as seen
+  socket.on('mark_seen', (data) => {
+    const { chatId, messageId, userId } = data;
+    io.to(chatId).emit('message_seen', { messageId, userId });
+  });
+
+  // Get online users
+  socket.on('get_online_users', (callback) => {
+    callback(Array.from(userSocketMap.keys()));
   });
 
   socket.on('disconnect', () => {
+    if (socket.userId) {
+      userSocketMap.delete(socket.userId);
+      io.emit('user_offline', socket.userId);
+      console.log(`User ${socket.userId} is now offline`);
+    }
     console.log('User disconnected:', socket.id);
   });
 });

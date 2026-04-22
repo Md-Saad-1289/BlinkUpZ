@@ -20,6 +20,20 @@ const messageSchema = new mongoose.Schema({
     enum: ["text", "image", "file"],
     default: "text"
   },
+  replyTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Message",
+    default: null
+  },
+  reactions: {
+    type: Map,
+    of: [String],
+    default: {}
+  },
+  read: {
+    type: Boolean,
+    default: false
+  },
   createdAt: {
     type: Date,
     default: Date.now

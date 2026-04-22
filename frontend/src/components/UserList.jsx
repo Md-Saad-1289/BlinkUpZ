@@ -31,26 +31,26 @@ const UserList = ({ onSelectUser, onClose }) => {
   }, [search]);
 
   return (
-    <div className="absolute top-full left-0 right-0 bg-slate-900/98 backdrop-blur-2xl border border-slate-700/60 rounded-2xl mt-2 z-30 max-h-96 overflow-hidden shadow-2xl shadow-black/50">
+    <div className="absolute top-full left-0 right-0 bg-slate-900/98 backdrop-blur-2xl border border-slate-700/60 rounded-xl sm:rounded-2xl mt-1 sm:mt-2 z-30 max-h-80 sm:max-h-96 overflow-hidden shadow-2xl shadow-black/50">
       {/* Header */}
-      <div className="p-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/40 to-slate-800/20">
+      <div className="p-3 sm:p-4 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/40 to-slate-800/20">
         <div className="relative">
           <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-            <FaMagnifyingGlass className="text-cyan-500 w-4 h-4" />
+            <FaMagnifyingGlass className="text-cyan-500 w-3 sm:w-4 h-3 sm:h-4" />
           </div>
           <input
             type="text"
-            placeholder="Search users by name or email..."
+            placeholder="Search users..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-10 py-3 bg-slate-800/80 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:bg-slate-800 placeholder-slate-500 transition-all border border-slate-700/50"
+            className="w-full px-8 sm:px-10 py-2 sm:py-3 bg-slate-800/80 text-white rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500/40 focus:bg-slate-800 placeholder-slate-500 transition-all border border-slate-700/50 text-sm sm:text-base"
           />
           {search && (
             <button
               onClick={() => setSearch("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition"
+              className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition p-1"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -59,11 +59,11 @@ const UserList = ({ onSelectUser, onClose }) => {
       </div>
 
       {/* Results */}
-      <div className="max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+      <div className="max-h-48 sm:max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
         {loading && (
-          <div className="p-8 text-center">
-            <FaSpinner className="w-6 h-6 animate-spin text-cyan-500 mx-auto mb-2" />
-            <span className="text-slate-400 text-sm">Searching...</span>
+          <div className="p-6 sm:p-8 text-center">
+            <FaSpinner className="w-5 sm:w-6 h-5 sm:h-6 animate-spin text-cyan-500 mx-auto mb-2" />
+            <span className="text-slate-400 text-xs sm:text-sm">Searching...</span>
           </div>
         )}
 

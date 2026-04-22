@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { serverUrl } from '../config.js';
+import { setOnlineUsers } from '../redux/userSlice.js';
 
 const SocketContext = createContext();
 
@@ -12,6 +13,7 @@ export const useSocket = () => {
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const userData = useSelector((state) => state.user?.userData);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     if (userData) {
@@ -19,6 +21,20 @@ export const SocketProvider = ({ children }) => {
         withCredentials: true,
       });
       setSocket(newSocket);
+
+      // Tell server user is online
+      newSocket.on('connect', () => {
+        newSocket.emit('go_online', userData._id);
+      });
+
+      // Listen for online users
+      newSocket.on('user_online', (userId) => {
+        dispatch(setOnlineUsers({ userId, status: 'online' }));
+      });
+
+      newSocket.on('user_offline', (userId) => {
+        dispatch(setOnlineUsers({ userId, status: 'offline' }));
+      });
 
       return () => {
         newSocket.disconnect();
