@@ -4,6 +4,7 @@ import { useSocket } from "../context/SocketContext";
 import { addMessage, setReplyingTo, markMessageSeen } from "../redux/chatSlice";
 import useGetMessages from "../Hooks/useGetMessages";
 import MessageInput from "./MessageInput";
+import ImageViewer from "./ImageViewer";
 import { FaPhone, FaVideo, FaEllipsisVertical, FaCheck, FaCheckDouble, FaReply } from "react-icons/fa6";
 
 // Helper to format date
@@ -35,6 +36,7 @@ const ChatWindow = () => {
   const { currentChat, messages } = useSelector((state) => state.chat);
   const { userData, onlineUsers } = useSelector((state) => state.user);
   const messagesEndRef = useRef(null);
+  const [viewingImage, setViewingImage] = useState(null);
 
   useGetMessages(currentChat?._id);
 
@@ -43,6 +45,17 @@ const ChatWindow = () => {
     (p) => p._id !== userData?._id
   );
   const isOtherOnline = onlineUsers[otherParticipant?._id] === 'online';
+
+  // Handle ESC key to close image viewer
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape" && viewingImage) {
+        setViewingImage(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [viewingImage]);
 
   useEffect(() => {
     if (socket && currentChat) {
@@ -223,13 +236,20 @@ const ChatWindow = () => {
                       }`}
                     >
                       {message.messageType === "image" ? (
-                        <div className="relative">
+                        <div 
+                          className="relative cursor-pointer"
+                          onClick={() => setViewingImage(message.content)}
+                        >
                           <img
                             src={message.content}
                             alt="Sent image"
-                            className="max-w-full rounded-xl max-h-72 object-cover shadow-sm border border-slate-600/30"
+                            className="max-w-full rounded-xl max-h-72 object-cover shadow-sm border border-slate-600/30 hover:opacity-90 transition-opacity"
                             onError={(e) => e.target.style.display = "none"}
                           />
+                          {/* View indicator */}
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-xl opacity-0 hover:opacity-100 transition-opacity">
+                            <span className="bg-black/60 px-3 py-1 rounded-full text-xs text-white">Click to view</span>
+                          </div>
                         </div>
                       ) : (
                         <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">{message.content}</p>
@@ -273,6 +293,14 @@ const ChatWindow = () => {
       <div className="flex-shrink-0">
         <MessageInput />
       </div>
+
+      {/* Image Viewer Modal */}
+      {viewingImage && (
+        <ImageViewer 
+          image={viewingImage} 
+          onClose={() => setViewingImage(null)} 
+        />
+      )}
     </div>
   );
 };
