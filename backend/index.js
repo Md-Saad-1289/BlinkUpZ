@@ -11,6 +11,11 @@ import chatRouter from "./routes/chat.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
+import { fileURLToPath } from "url";
+
+// ES Module __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = createServer(app);
@@ -36,11 +41,12 @@ app.use("/api/auth", authRouter);
 app.use("/api/user", userRouter);
 app.use("/api/chat", chatRouter);
 
-// Serve static frontend files for all non-API routes (SPA fallback)
-app.use(express.static(path.join(__dirname, "../frontend/dist")));
+// Serve static frontend files for SPA fallback (for direct URL access)
+app.use(express.static(path.join(__dirname, "dist")));
 
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
+// SPA fallback - must be last route
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, "dist/index.html"));
 });
 
 // Socket.io connection
