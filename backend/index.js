@@ -45,8 +45,12 @@ app.use("/api/chat", chatRouter);
 app.use(express.static(path.join(__dirname, "dist")));
 
 // SPA fallback - catch all routes that aren't API
-app.get(/^\/(?!api\/).*/, (req, res) => {
-  res.sendFile(path.join(__dirname, "dist/index.html"));
+app.use((req, res) => {
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(__dirname, "dist/index.html"));
+  } else {
+    res.status(404).json({ error: "Not found" });
+  }
 });
 
 // Socket.io connection
