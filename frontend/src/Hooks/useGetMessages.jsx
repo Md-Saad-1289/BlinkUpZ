@@ -1,7 +1,6 @@
 import { useEffect } from "react";
-import axios from "axios";
+import api from "../api.js";
 import { useDispatch, useSelector } from "react-redux";
-import { serverUrl } from "../config.js";
 import { setMessages, setLoading, setError } from "../redux/chatSlice";
 
 const useGetMessages = (chatId) => {
@@ -15,9 +14,7 @@ const useGetMessages = (chatId) => {
     const fetchMessages = async () => {
       dispatch(setLoading(true));
       try {
-        const res = await axios.get(`${serverUrl}/api/chat/${chatId}/messages`, {
-          withCredentials: true,
-        });
+        const res = await api.get(`/api/chat/${chatId}/messages`);
         dispatch(setMessages(res.data));
       } catch (err) {
         console.error("Fetch messages failed:", err);

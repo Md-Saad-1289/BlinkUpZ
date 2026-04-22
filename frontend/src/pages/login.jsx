@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
-import axios from 'axios'
-import { serverUrl } from '../config.js'
+import api from '../api.js'
 import { setUserData } from '../redux/userSlice'
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaSpinner } from 'react-icons/fa6'
 
@@ -22,10 +21,9 @@ function Login() {
     setLoading(true)
 
     try {
-      const { data } = await axios.post(
-        `${serverUrl}/api/auth/login`,
-        { email, password },
-        { withCredentials: true }
+      const { data } = await api.post(
+        '/api/auth/login',
+        { email, password }
       )
 
       dispatch(setUserData(data))

@@ -1,7 +1,6 @@
 import { useEffect } from "react"
-import axios from "axios"
+import api from "../api.js"
 import { useDispatch, useSelector } from "react-redux"
-import { serverUrl } from "../config.js"
 import { setUserData } from "../redux/userSlice"
 
 const useGetCurrentUser = () => {
@@ -13,9 +12,7 @@ const useGetCurrentUser = () => {
 
     const fetchUser = async () => {
       try {
-        const res = await axios.get(`${serverUrl}/api/user/current`, {
-          withCredentials: true,
-        });
+        const res = await api.get('/api/user/current');
         dispatch(setUserData(res.data));
       } catch (err) {
         console.log("No active session: ", err);

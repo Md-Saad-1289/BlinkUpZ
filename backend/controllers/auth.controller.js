@@ -80,12 +80,7 @@ export const logIn = async (req, res) => {
 // ================= LOGOUT =================
 export const logOut = async (req, res) => {
   try {
-    res.clearCookie("BlinkUpZToken", {
-      httpOnly: true,
-      secure: false,
-      sameSite: "Lax",
-      path: "/",
-    });
+    res.clearCookie("BlinkUpZToken", cookieOptions);
     return res.status(200).json({ Message: "Logout successful" });
   } catch (error) {
     console.error("logOut error:", error);

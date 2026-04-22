@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { serverUrl } from "../config.js";
+import api from '../api.js'
 import { FaMagnifyingGlass, FaSpinner, FaUser } from "react-icons/fa6";
 
 const UserList = ({ onSelectUser, onClose }) => {
@@ -17,9 +16,7 @@ const UserList = ({ onSelectUser, onClose }) => {
 
       setLoading(true);
       try {
-        const res = await axios.get(`${serverUrl}/api/user/search?q=${encodeURIComponent(search)}`, {
-          withCredentials: true,
-        });
+        const res = await api.get(`/api/user/search?q=${encodeURIComponent(search)}`);
         setUsers(res.data);
       } catch (error) {
         console.error("Search users failed:", error);

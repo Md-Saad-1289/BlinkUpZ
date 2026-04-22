@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import api from '../api.js'
 import { useDispatch } from 'react-redux'
-import { serverUrl } from '../config.js'
 import { setUserData } from '../redux/userSlice'
 import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaSpinner } from 'react-icons/fa6'
 
@@ -23,10 +22,9 @@ function SignUp() {
     setError('')
 
     try {
-      const { data } = await axios.post(
-        `${serverUrl}/api/auth/signup`,
-        { username: userName, email, password },
-        { withCredentials: true }
+      const { data } = await api.post(
+        '/api/auth/signup',
+        { username: userName, email, password }
       )
 
       dispatch(setUserData(data))

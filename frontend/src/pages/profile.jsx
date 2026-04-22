@@ -2,9 +2,8 @@ import React, { useState, useRef, useEffect } from "react"
 import { useSelector, useDispatch } from "react-redux"
 import { IoCameraOutline } from "react-icons/io5"
 import { useNavigate } from "react-router-dom"
-import axios from "axios"
+import api from "../api.js"
 import { setUserData } from "../redux/userSlice"
-import { serverUrl } from "../config.js"
 import { FaArrowLeft, FaUser, FaEnvelope, FaFloppyDisk, FaSpinner } from "react-icons/fa6"
 
 function Profile() {
@@ -43,9 +42,7 @@ function Profile() {
       formData.append("name", name)
       if (backendImage) formData.append("image", backendImage)
 
-      const result = await axios.post(`${serverUrl}/api/user/profile`, formData, {
-        withCredentials: true,
-      })
+      const result = await api.post('/api/user/profile', formData)
 
       dispatch(setUserData(result.data))
       setSuccess("Profile updated successfully!")

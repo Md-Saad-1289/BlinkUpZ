@@ -1,8 +1,7 @@
 import React, { useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useSocket } from "../context/SocketContext";
-import axios from "axios";
-import { serverUrl } from "../config.js";
+import api from '../api.js'
 import { addMessage } from "../redux/chatSlice";
 import { FaPaperPlane, FaFaceSmile, FaImage } from "react-icons/fa6";
 import EmojiPicker from "emoji-picker-react";
@@ -31,13 +30,10 @@ const MessageInput = () => {
     formData.append("image", file);
 
     try {
-      const res = await axios.post(
-        `${serverUrl}/api/chat/${currentChat._id}/messages`,
+      const res = await api.post(
+        `/api/chat/${currentChat._id}/messages`,
         formData,
-        {
-          withCredentials: true,
-          headers: { "Content-Type": "multipart/form-data" },
-        }
+        { headers: { "Content-Type": "multipart/form-data" } }
       );
 
       dispatch(addMessage(res.data));
@@ -58,10 +54,9 @@ const MessageInput = () => {
     if (!content.trim() || !currentChat) return;
 
     try {
-      const res = await axios.post(
-        `${serverUrl}/api/chat/${currentChat._id}/messages`,
-        { content: content.trim() },
-        { withCredentials: true }
+      const res = await api.post(
+        `/api/chat/${currentChat._id}/messages`,
+        { content: content.trim() }
       );
 
       dispatch(addMessage(res.data));

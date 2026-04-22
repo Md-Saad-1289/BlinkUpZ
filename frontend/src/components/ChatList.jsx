@@ -3,8 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setCurrentChat } from "../redux/chatSlice";
 import useGetChats from "../Hooks/useGetChats";
 import UserList from "./UserList";
-import axios from "axios";
-import { serverUrl } from "../config.js";
+import api from '../api.js'
 import { FaPlus, FaComments } from "react-icons/fa6";
 
 // Format time to show relative or absolute time
@@ -38,10 +37,9 @@ const ChatList = () => {
 
   const handleSelectUser = async (user) => {
     try {
-      const res = await axios.post(
-        `${serverUrl}/api/chat`,
-        { participantId: user._id },
-        { withCredentials: true }
+      const res = await api.post(
+        '/api/chat',
+        { participantId: user._id }
       );
       dispatch(setCurrentChat(res.data));
     } catch (error) {

@@ -1,8 +1,7 @@
 import React from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
-import { serverUrl } from "../config.js";
+import api from "../api.js";
 import { setUserData } from "../redux/userSlice";
 import ChatList from "../components/ChatList";
 import ChatWindow from "../components/ChatWindow";
@@ -22,7 +21,7 @@ function Home() {
   const handleLogout = async () => {
     console.log('Logout clicked');
     try {
-      await axios.get(`${serverUrl}/api/auth/logout`, { withCredentials: true });
+      await api.get('/api/auth/logout');
     } catch (error) {
       console.error('Logout API failed:', error);
     }
