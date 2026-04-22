@@ -42,14 +42,15 @@ app.use("/api/user", userRouter);
 app.use("/api/chat", chatRouter);
 
 // Serve static frontend files for SPA fallback (for direct URL access)
-app.use(express.static(path.join(__dirname, "dist"), { index: false }));
+app.use(express.static(path.join(__dirname, "dist")));
 
-// SPA fallback - only for routes that didn't match (non-API)
+// Explicit route for index.html
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist/index.html"));
+});
+
+// SPA fallback for all other routes
 app.use((req, res) => {
-  // Don't handle API routes here - they should have been handled by routes above
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: "API endpoint not found" });
-  }
   res.sendFile(path.join(__dirname, "dist/index.html"));
 });
 
