@@ -1,10 +1,86 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useSocket } from "../context/SocketContext";
-import api from '../api.js'
+import api from '../api.js';
 import { addMessage, setReplyingTo } from "../redux/chatSlice";
-import { FaPaperPlane, FaImage, FaXmark, FaReply, FaFaceSmile, FaMicrophone, FaStop, FaLock, FaUnlock } from "react-icons/fa6";
+import {
+  FaPaperPlane, FaImage, FaXmark, FaReply,
+  FaFaceSmile, FaMicrophone, FaStop,
+  FaLock, FaUnlock
+} from "react-icons/fa6";
 import EmojiPicker from 'emoji-picker-react';
+
+// ─── Multi-Emoji Peek System ────────────────────────────────────────────────
+
+const QUICK_EMOJIS = ["😂", "❤️", "👍", "😭", "🙏", "😍", "🔥", "😊", "🥺", "💀"];
+const MAX_RECENT = 8;
+const RECENT_KEY = "chat_recent_emojis";
+
+const loadRecentEmojis = () => {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const saveRecentEmojis = (list) => {
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+  } catch {}
+};
+
+const EmojiPeekBar = ({ onSelect, onTogglePicker, showPicker }) => {
+  const [recent, setRecent] = useState(loadRecentEmojis);
+
+  const handleSelect = (emoji) => {
+    setRecent(prev => {
+      const next = [emoji, ...prev.filter(e => e !== emoji)].slice(0, MAX_RECENT);
+      saveRecentEmojis(next);
+      return next;
+    });
+    onSelect(emoji);
+  };
+
+  const displayEmojis = recent.length > 0
+    ? [...new Set([...recent, ...QUICK_EMOJIS])].slice(0, 10)
+    : QUICK_EMOJIS;
+
+  return (
+    <div className="flex items-center gap-1 px-1">
+      {displayEmojis.map((emoji, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => handleSelect(emoji)}
+          className="text-lg leading-none p-1 rounded-lg hover:bg-slate-700/60 transition-all active:scale-90 select-none"
+          title={emoji}
+        >
+          {emoji}
+        </button>
+      ))}
+      <button
+        type="button"
+        onClick={onTogglePicker}
+        className={`p-1.5 rounded-lg transition-all ${
+          showPicker
+            ? 'text-cyan-400 bg-cyan-500/20'
+            : 'text-slate-400 hover:text-cyan-400 hover:bg-slate-700/60'
+        }`}
+        title="More emojis"
+      >
+        <FaFaceSmile className="w-4 h-4" />
+      </button>
+    </div>
+  );
+};
+
+// ─── Voice Timer Display ─────────────────────────────────────────────────────
+
+const formatTime = (secs) =>
+  `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+
+// ─── Main Component ──────────────────────────────────────────────────────────
 
 const MessageInput = () => {
   const [content, setContent] = useState("");
@@ -15,101 +91,134 @@ const MessageInput = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [recordingError, setRecordingError] = useState(null);
   const [audioLevel, setAudioLevel] = useState(0);
-  const [showRecordingUI, setShowRecordingUI] = useState(false);
-  const [recordingBlob, setRecordingBlob] = useState(null);
-  const [isRecordingPaused, setIsRecordingPaused] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
+  const [isRecordingPaused, setIsRecordingPaused] = useState(false);
+
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const mediaRecorderRef = useRef(null);
-  const recordingTimeoutRef = useRef(null);
+  const recordingTimerRef = useRef(null);
   const recordingAutoStopRef = useRef(null);
   const isRecordingRef = useRef(false);
   const audioContextRef = useRef(null);
   const analyserRef = useRef(null);
-  const microphoneRef = useRef(null);
   const animationFrameRef = useRef(null);
   const micButtonRef = useRef(null);
   const dragStartY = useRef(0);
   const dragStartTime = useRef(0);
+  const cancelledRef = useRef(false);
+  const textareaRef = useRef(null);
+
   const dispatch = useDispatch();
   const socket = useSocket();
   const { currentChat, replyingTo } = useSelector((state) => state.chat);
   const { userData } = useSelector((state) => state.user);
 
+  // ── Cleanup on unmount / chat change ────────────────────────────────────
+
   useEffect(() => {
     return () => {
-      // Cleanup: stop typing when component unmounts or chat changes
       if (socket && currentChat && isTyping) {
-        socket.emit("typing_stop", { 
-          chatId: currentChat._id, 
+        socket.emit("typing_stop", {
+          chatId: currentChat._id,
           userId: userData._id,
-          userName: userData.name || userData.username
+          userName: userData.name || userData.username,
         });
       }
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      if (recordingTimeoutRef.current) {
-        clearInterval(recordingTimeoutRef.current);
-      }
-      if (recordingAutoStopRef.current) {
-        clearTimeout(recordingAutoStopRef.current);
-      }
+      clearTimeout(typingTimeoutRef.current);
+      clearInterval(recordingTimerRef.current);
+      clearTimeout(recordingAutoStopRef.current);
       cleanupAudioMonitoring();
     };
-  }, [currentChat, socket, userData, isTyping]);
+  }, [currentChat?._id]);
+
+  // ── Close emoji picker on outside click ─────────────────────────────────
+
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+    const handler = (e) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showEmojiPicker]);
+
+  // ── Typing indicators ────────────────────────────────────────────────────
+
+  const emitTypingStop = useCallback(() => {
+    if (socket && currentChat && isTyping) {
+      socket.emit("typing_stop", {
+        chatId: currentChat._id,
+        userId: userData._id,
+        userName: userData.name || userData.username,
+      });
+      setIsTyping(false);
+    }
+  }, [socket, currentChat, isTyping, userData]);
 
   const handleInputChange = (e) => {
     setContent(e.target.value);
-    
+
     if (socket && currentChat && !isTyping) {
-      socket.emit("typing_start", { 
-        chatId: currentChat._id, 
+      socket.emit("typing_start", {
+        chatId: currentChat._id,
         userId: userData._id,
-        userName: userData.name || userData.username
+        userName: userData.name || userData.username,
       });
       setIsTyping(true);
     }
-    
-    // Clear existing timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    
-    // Set new timeout to stop typing
+
+    clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
-      if (socket && currentChat && isTyping) {
-        socket.emit("typing_stop", { 
-          chatId: currentChat._id, 
-          userId: userData._id,
-          userName: userData.name || userData.username
-        });
-        setIsTyping(false);
-      }
-    }, 1000);
+      emitTypingStop();
+    }, 1500);
   };
 
+  // ── Emoji handling ───────────────────────────────────────────────────────
+
+  const insertEmoji = (emoji) => {
+    const ta = textareaRef.current;
+    if (!ta) {
+      setContent(prev => prev + emoji);
+      return;
+    }
+    const start = ta.selectionStart ?? content.length;
+    const end = ta.selectionEnd ?? content.length;
+    const next = content.slice(0, start) + emoji + content.slice(end);
+    setContent(next);
+    // Restore cursor after React re-render
+    requestAnimationFrame(() => {
+      ta.selectionStart = ta.selectionEnd = start + [...emoji].length;
+      ta.focus();
+    });
+  };
+
+  const handleEmojiClick = (emojiData) => {
+    insertEmoji(emojiData.emoji);
+  };
+
+  const handleQuickEmoji = (emoji) => {
+    insertEmoji(emoji);
+  };
+
+  // ── Image upload ─────────────────────────────────────────────────────────
+
   const handleImageSelect = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file || !currentChat) return;
 
     setUploading(true);
     const formData = new FormData();
     formData.append("image", file);
-    if (replyingTo) {
-      formData.append("replyTo", replyingTo._id);
-    }
+    if (replyingTo) formData.append("replyTo", replyingTo._id);
 
     try {
-      const res = await api.post(
-        `/api/chat/${currentChat._id}/messages`,
-        formData
-      );
-
+      const res = await api.post(`/api/chat/${currentChat._id}/messages`, formData);
       dispatch(addMessage(res.data));
       dispatch(setReplyingTo(null));
       socket?.emit("send_message", {
@@ -117,219 +226,180 @@ const MessageInput = () => {
         message: res.data,
         senderId: userData._id,
       });
-    } catch (error) {
-      console.error("Send image failed:", error);
+    } catch (err) {
+      console.error("Send image failed:", err);
     } finally {
       setUploading(false);
-      fileInputRef.current.value = "";
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  // Voice recording functions
+  // ── Audio monitoring ─────────────────────────────────────────────────────
+
+  const cleanupAudioMonitoring = () => {
+    cancelAnimationFrame(animationFrameRef.current);
+    if (audioContextRef.current?.state !== "closed") {
+      audioContextRef.current?.close();
+    }
+    audioContextRef.current = null;
+    analyserRef.current = null;
+  };
+
+  // ── Voice recording ──────────────────────────────────────────────────────
+
   const startRecording = async () => {
+    cancelledRef.current = false;
+    setRecordingError(null);
+
+    let stream;
     try {
-      setRecordingError(null);
-      const stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
-          sampleRate: 44100
-        }
+          sampleRate: 44100,
+        },
       });
-
-      // Setup audio context for level monitoring
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const analyser = audioContext.createAnalyser();
-      const microphone = audioContext.createMediaStreamSource(stream);
-
-      analyser.fftSize = 256;
-      microphone.connect(analyser);
-      audioContextRef.current = audioContext;
-      analyserRef.current = analyser;
-      microphoneRef.current = microphone;
-
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 
-          MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' :
-          MediaRecorder.isTypeSupported('audio/mpeg') ? 'audio/mpeg' :
-          MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
-          'audio/webm'
-      });
-      mediaRecorderRef.current = mediaRecorder;
-
-      const chunks = [];
-      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-
-      mediaRecorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
-        setRecordingBlob(blob);
-        
-        // Auto-send if not locked and not cancelled
-        if (!isLocked) {
-          await sendVoiceMessage(blob);
-        }
-        
-        stream.getTracks().forEach(track => track.stop());
-        cleanupAudioMonitoring();
-      };
-
-      mediaRecorder.start(100); // Collect data every 100ms
-      setIsRecording(true);
-      setIsRecordingPaused(false);
-      isRecordingRef.current = true;
-      setRecordingTime(0);
-      setAudioLevel(0);
-
-      // Start audio level monitoring
-      const monitorAudioLevel = () => {
-        if (!analyserRef.current) return;
-
-        const bufferLength = analyserRef.current.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
-        analyserRef.current.getByteFrequencyData(dataArray);
-
-        // Calculate average volume level
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          sum += dataArray[i];
-        }
-        const average = sum / bufferLength;
-        setAudioLevel(Math.min(average / 128, 1)); // Normalize to 0-1
-
-        if (isRecordingRef.current) {
-          animationFrameRef.current = requestAnimationFrame(monitorAudioLevel);
-        }
-      };
-      monitorAudioLevel();
-
-      // Start timer
-      recordingTimeoutRef.current = setInterval(() => {
-        setRecordingTime(prev => {
-          if (prev >= 299) { // Max 5 minutes
-            stopRecording();
-            return 300;
-          }
-          return prev + 1;
-        });
-      }, 1000);
-
-      // Auto-stop after 5 minutes
-      recordingAutoStopRef.current = setTimeout(() => {
-        if (isRecordingRef.current) stopRecording();
-      }, 300000);
-
-    } catch (error) {
-      console.error('Error starting recording:', error);
-      let errorMessage = 'Unable to access microphone. ';
-      if (error.name === 'NotAllowedError') {
-        errorMessage += 'Please allow microphone access and try again.';
-      } else if (error.name === 'NotFoundError') {
-        errorMessage += 'No microphone found.';
-      } else {
-        errorMessage += 'Please check your microphone settings.';
-      }
-      setRecordingError(errorMessage);
+    } catch (err) {
+      const msg =
+        err.name === "NotAllowedError"
+          ? "Microphone access denied. Please allow it and try again."
+          : err.name === "NotFoundError"
+          ? "No microphone found on this device."
+          : "Could not access microphone. Check your settings.";
+      setRecordingError(msg);
       setTimeout(() => setRecordingError(null), 8000);
+      return;
     }
-  };
 
-  const cleanupAudioMonitoring = () => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-    }
-    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close();
-    }
-    audioContextRef.current = null;
-    analyserRef.current = null;
-    microphoneRef.current = null;
+    // Audio level monitoring
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    audioCtx.createMediaStreamSource(stream).connect(analyser);
+    audioContextRef.current = audioCtx;
+    analyserRef.current = analyser;
+
+    const monitorLevel = () => {
+      if (!analyserRef.current || !isRecordingRef.current) return;
+      const data = new Uint8Array(analyserRef.current.frequencyBinCount);
+      analyserRef.current.getByteFrequencyData(data);
+      const avg = data.reduce((s, v) => s + v, 0) / data.length;
+      setAudioLevel(Math.min(avg / 128, 1));
+      animationFrameRef.current = requestAnimationFrame(monitorLevel);
+    };
+
+    // MIME type selection
+    const mimeType =
+      ["audio/mp4", "audio/mpeg", "audio/webm;codecs=opus", "audio/webm"]
+        .find(t => MediaRecorder.isTypeSupported(t)) || "";
+
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+    mediaRecorderRef.current = recorder;
+    const chunks = [];
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+
+    recorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      cleanupAudioMonitoring();
+      if (cancelledRef.current) return;
+      const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+      await sendVoiceMessage(blob, recorder.mimeType);
+    };
+
+    recorder.start(100);
+    setIsRecording(true);
+    setIsRecordingPaused(false);
+    isRecordingRef.current = true;
+    setRecordingTime(0);
+    setAudioLevel(0);
+
+    monitorLevel();
+
+    // Timer
+    recordingTimerRef.current = setInterval(() => {
+      setRecordingTime(prev => {
+        if (prev >= 299) {
+          stopRecording();
+          return 300;
+        }
+        return prev + 1;
+      });
+    }, 1000);
+
+    // Auto-stop at 5 min
+    recordingAutoStopRef.current = setTimeout(() => {
+      if (isRecordingRef.current) stopRecording();
+    }, 300_000);
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecordingRef.current) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      setIsRecordingPaused(false);
-      isRecordingRef.current = false;
-      if (recordingTimeoutRef.current) {
-        clearInterval(recordingTimeoutRef.current);
-      }
-      if (recordingAutoStopRef.current) {
-        clearTimeout(recordingAutoStopRef.current);
-      }
-      cleanupAudioMonitoring();
-    }
-  };
-
-  const pauseRecording = () => {
-    if (mediaRecorderRef.current && isRecordingRef.current) {
-      if (mediaRecorderRef.current.state === 'recording') {
-        mediaRecorderRef.current.pause();
-        setIsRecordingPaused(true);
-        if (recordingTimeoutRef.current) {
-          clearInterval(recordingTimeoutRef.current);
-        }
-      } else if (mediaRecorderRef.current.state === 'paused') {
-        mediaRecorderRef.current.resume();
-        setIsRecordingPaused(false);
-        // Resume timer
-        recordingTimeoutRef.current = setInterval(() => {
-          setRecordingTime(prev => {
-            if (prev >= 299) {
-              stopRecording();
-              return 300;
-            }
-            return prev + 1;
-          });
-        }, 1000);
-      }
-    }
-  };
-
-  const cancelRecording = () => {
-    if (mediaRecorderRef.current) {
+    if (!isRecordingRef.current || !mediaRecorderRef.current) return;
+    if (mediaRecorderRef.current.state !== "inactive") {
       mediaRecorderRef.current.stop();
     }
+    isRecordingRef.current = false;
     setIsRecording(false);
     setIsRecordingPaused(false);
-    setRecordingTime(0);
-    setAudioLevel(0);
-    setRecordingBlob(null);
-    setShowRecordingUI(false);
-    setIsDragging(false);
-    setDragOffset(0);
-    setIsLocked(false);
-    isRecordingRef.current = false;
-    if (recordingTimeoutRef.current) {
-      clearInterval(recordingTimeoutRef.current);
-    }
-    if (recordingAutoStopRef.current) {
-      clearTimeout(recordingAutoStopRef.current);
-    }
+    clearInterval(recordingTimerRef.current);
+    clearTimeout(recordingAutoStopRef.current);
     cleanupAudioMonitoring();
   };
 
-  const sendVoiceMessage = async (audioBlob) => {
+  const cancelRecording = () => {
+    cancelledRef.current = true;
+    if (mediaRecorderRef.current?.state !== "inactive") {
+      mediaRecorderRef.current?.stop();
+    }
+    isRecordingRef.current = false;
+    setIsRecording(false);
+    setIsRecordingPaused(false);
+    setIsLocked(false);
+    setIsDragging(false);
+    setDragOffset(0);
+    setRecordingTime(0);
+    setAudioLevel(0);
+    clearInterval(recordingTimerRef.current);
+    clearTimeout(recordingAutoStopRef.current);
+    cleanupAudioMonitoring();
+  };
+
+  const pauseRecording = () => {
+    if (!mediaRecorderRef.current || !isRecordingRef.current) return;
+    if (mediaRecorderRef.current.state === "recording") {
+      mediaRecorderRef.current.pause();
+      setIsRecordingPaused(true);
+      clearInterval(recordingTimerRef.current);
+    } else if (mediaRecorderRef.current.state === "paused") {
+      mediaRecorderRef.current.resume();
+      setIsRecordingPaused(false);
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => {
+          if (prev >= 299) { stopRecording(); return 300; }
+          return prev + 1;
+        });
+      }, 1000);
+    }
+  };
+
+  const sendVoiceMessage = async (audioBlob, mimeType = "") => {
     if (!currentChat || !audioBlob) return;
 
     setUploading(true);
-    setShowRecordingUI(false);
+    const ext = mimeType.includes("mp4") ? "m4a"
+              : mimeType.includes("mpeg") ? "mp3"
+              : "webm";
     const formData = new FormData();
-    const fileExtension = mediaRecorderRef.current?.mimeType?.includes('mp4') ? 'm4a' :
-                         mediaRecorderRef.current?.mimeType?.includes('mpeg') ? 'mp3' : 'webm';
-    formData.append("audio", audioBlob, `voice-message-${Date.now()}.${fileExtension}`);
+    formData.append("audio", audioBlob, `voice-${Date.now()}.${ext}`);
     formData.append("messageType", "audio");
-    if (replyingTo) {
-      formData.append("replyTo", replyingTo._id);
-    }
+    if (replyingTo) formData.append("replyTo", replyingTo._id);
 
     try {
-      const res = await api.post(
-        `/api/chat/${currentChat._id}/messages`,
-        formData
-      );
-
+      const res = await api.post(`/api/chat/${currentChat._id}/messages`, formData);
       dispatch(addMessage(res.data));
       dispatch(setReplyingTo(null));
       socket?.emit("send_message", {
@@ -337,36 +407,30 @@ const MessageInput = () => {
         message: res.data,
         senderId: userData._id,
       });
-
-      // Reset recording state
-      setRecordingBlob(null);
       setRecordingTime(0);
       setAudioLevel(0);
       setIsLocked(false);
-    } catch (error) {
-      console.error("Send voice message failed:", error);
-      setRecordingError('Failed to send voice message. Please try again.');
+    } catch (err) {
+      console.error("Send voice failed:", err);
+      setRecordingError("Failed to send voice message. Please try again.");
       setTimeout(() => setRecordingError(null), 5000);
-      setShowRecordingUI(true); // Show UI again to retry
     } finally {
       setUploading(false);
     }
   };
 
+  // ── Text message send ────────────────────────────────────────────────────
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!content.trim() || !currentChat) return;
+    e?.preventDefault();
+    if (!content.trim() || !currentChat || uploading) return;
 
     setUploading(true);
     try {
-      const res = await api.post(
-        `/api/chat/${currentChat._id}/messages`,
-        { 
-          content: content.trim(),
-          replyTo: replyingTo?._id || null
-        }
-      );
-
+      const res = await api.post(`/api/chat/${currentChat._id}/messages`, {
+        content: content.trim(),
+        replyTo: replyingTo?._id || null,
+      });
       dispatch(addMessage(res.data));
       dispatch(setReplyingTo(null));
       setContent("");
@@ -375,111 +439,75 @@ const MessageInput = () => {
         message: res.data,
         senderId: userData._id,
       });
-      
-      // Stop typing
-      if (isTyping) {
-        socket?.emit("typing_stop", { 
-          chatId: currentChat._id, 
-          userId: userData._id,
-          userName: userData.name || userData.username
-        });
-        setIsTyping(false);
-      }
-    } catch (error) {
-      console.error("Send message failed:", error);
+      emitTypingStop();
+    } catch (err) {
+      console.error("Send message failed:", err);
       alert("Failed to send message. Please try again.");
     } finally {
       setUploading(false);
     }
   };
 
-  const handleCancelReply = () => {
-    dispatch(setReplyingTo(null));
-  };
-
-  const handleMouseDown = (e) => {
-    if (uploading || isRecording) return;
-    e.preventDefault();
-    dragStartY.current = e.clientY;
-    dragStartTime.current = Date.now();
-    startRecording();
-  };
-
-  const handleMouseMove = (e) => {
-    if (!isRecording || isLocked) return;
-    const currentY = e.clientY;
-    const deltaY = dragStartY.current - currentY;
-    setDragOffset(Math.max(0, Math.min(deltaY, 100))); // Limit to 100px up
-    setIsDragging(deltaY > 10); // Start dragging after 10px
-  };
-
-  const handleMouseUp = (e) => {
-    if (!isRecording) return;
-    
-    const deltaY = dragStartY.current - e.clientY;
-    const holdTime = Date.now() - dragStartTime.current;
-    
-    if (deltaY > 50 && holdTime > 500) { // Slide up to cancel
-      cancelRecording();
-    } else if (deltaY > 80) { // Slide up to lock
-      setIsLocked(true);
-    } else if (holdTime < 500) { // Too short, cancel
-      cancelRecording();
-    } else { // Normal release, send
-      stopRecording();
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
     }
-    
-    setIsDragging(false);
-    setDragOffset(0);
   };
 
-  const handleTouchStart = (e) => {
+  // ── Mouse / touch drag-to-record ─────────────────────────────────────────
+
+  const handlePointerDown = (e) => {
     if (uploading || isRecording) return;
     e.preventDefault();
-    dragStartY.current = e.touches[0].clientY;
+    dragStartY.current = e.clientY ?? e.touches?.[0]?.clientY;
     dragStartTime.current = Date.now();
     startRecording();
   };
 
-  const handleTouchMove = (e) => {
+  const handlePointerMove = (e) => {
     if (!isRecording || isLocked) return;
-    e.preventDefault();
-    const currentY = e.touches[0].clientY;
-    const deltaY = dragStartY.current - currentY;
-    setDragOffset(Math.max(0, Math.min(deltaY, 100)));
-    setIsDragging(deltaY > 10);
+    const y = e.clientY ?? e.touches?.[0]?.clientY;
+    const delta = dragStartY.current - y;
+    setDragOffset(Math.max(0, Math.min(delta, 100)));
+    setIsDragging(delta > 10);
   };
 
-  const handleTouchEnd = (e) => {
+  const handlePointerUp = (e) => {
     if (!isRecording) return;
-    e.preventDefault();
-    
-    const deltaY = dragStartY.current - (e.changedTouches[0]?.clientY || dragStartY.current);
-    const holdTime = Date.now() - dragStartTime.current;
-    
-    if (deltaY > 50 && holdTime > 500) {
-      cancelRecording();
-    } else if (deltaY > 80) {
+    const y = e.clientY ?? e.changedTouches?.[0]?.clientY ?? dragStartY.current;
+    const delta = dragStartY.current - y;
+    const held = Date.now() - dragStartTime.current;
+
+    if (delta > 80 && !isLocked) {
       setIsLocked(true);
-    } else if (holdTime < 500) {
+    } else if (delta > 50 && held > 500) {
+      cancelRecording();
+    } else if (held < 300) {
       cancelRecording();
     } else {
       stopRecording();
     }
-    
+
     setIsDragging(false);
     setDragOffset(0);
   };
 
+  const handleCancelReply = () => dispatch(setReplyingTo(null));
+
+  // ─────────────────────────────────────────────────────────────────────────
+
   return (
     <div className="relative">
-      {/* Reply Preview */}
+      {/* Reply preview */}
       {replyingTo && (
-        <div className="px-2 sm:px-4 py-2 bg-slate-800/50 border-t border-slate-700/30 flex items-center justify-between gap-2">
+        <div className="px-3 sm:px-4 py-2 bg-slate-800/50 border-t border-slate-700/30 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <FaReply className="w-3 h-3 text-cyan-400 rotate-180 flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-cyan-400 font-medium">Replying to {replyingTo.sender?.username || 'message'}</p>
+              <p className="text-[10px] text-cyan-400 font-medium">
+                Replying to {replyingTo.sender?.username || "message"}
+              </p>
               <p className="text-xs text-slate-400 truncate">{replyingTo.content}</p>
             </div>
           </div>
@@ -492,88 +520,61 @@ const MessageInput = () => {
           </button>
         </div>
       )}
-      
-      <form onSubmit={handleSubmit} className="p-2 sm:p-4 border-t border-slate-700/30 bg-slate-900/80 backdrop-blur-xl">
-        {/* Recording Preview UI - Disabled for WhatsApp style */}
-        {false && showRecordingUI && recordingBlob && (
-          <div className="mb-4 p-4 bg-gradient-to-r from-slate-800/80 to-slate-700/80 backdrop-blur-lg rounded-2xl border border-slate-600/50 shadow-xl">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-400/40">
-                  <FaMicrophone className="w-5 h-5 text-cyan-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-white">Voice Message Recorded</h3>
-                  <p className="text-xs text-slate-400">
-                    {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')} • {(recordingBlob.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowRecordingUI(false)}
-                  className="px-3 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-600/50 rounded-lg transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => sendVoiceMessage(recordingBlob)}
-                  disabled={uploading}
-                  className="px-4 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-medium rounded-lg hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-cyan-500/20"
-                >
-                  {uploading ? 'Sending...' : 'Send Voice'}
-                </button>
-              </div>
-            </div>
-            {/* Simple waveform preview */}
-            <div className="flex items-end justify-center gap-0.5 h-8 bg-slate-800/50 rounded-lg p-2">
-              {Array.from({ length: 20 }, (_, i) => (
-                <div
-                  key={i}
-                  className="flex-1 bg-gradient-to-t from-cyan-400 to-cyan-300 rounded-sm transition-all"
-                  style={{
-                    height: `${Math.random() * 60 + 20}%`,
-                    opacity: i < (recordingTime / 3) % 20 ? 1 : 0.4
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-        )}
 
-        <div className="flex gap-2 sm:gap-3 items-center">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              className="p-2 sm:p-3 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition rounded-lg sm:rounded-xl hover:shadow-lg hover:shadow-cyan-500/10"
-            >
-              <FaFaceSmile className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
+      {/* Recording error */}
+      {recordingError && (
+        <div className="px-3 py-2 bg-red-500/15 border-t border-red-500/30 flex items-center gap-2 text-sm text-red-300">
+          <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse flex-shrink-0" />
+          {recordingError}
+        </div>
+      )}
 
+      {/* Emoji peek bar */}
+      <div className={`transition-all duration-200 ${isRecording ? "h-0 overflow-hidden opacity-0" : "border-t border-slate-700/30 bg-slate-900/60 px-2 py-1"}`}>
+        {!isRecording && (
+          <div className="relative flex items-center">
+            <EmojiPeekBar
+              onSelect={handleQuickEmoji}
+              onTogglePicker={() => setShowEmojiPicker(v => !v)}
+              showPicker={showEmojiPicker}
+            />
+
+            {/* Full emoji picker */}
             {showEmojiPicker && (
               <div
                 ref={emojiPickerRef}
-                className="absolute bottom-full left-0 mb-2 z-40"
+                className="absolute bottom-full left-0 mb-2 z-50 shadow-2xl shadow-black/40 rounded-2xl overflow-hidden"
               >
                 <EmojiPicker
                   onEmojiClick={handleEmojiClick}
                   theme="dark"
                   searchDisabled={false}
                   width={300}
-                  height={400}
+                  height={380}
+                  lazyLoadEmojis
+                  skinTonesDisabled
+                  previewConfig={{ showPreview: false }}
                 />
               </div>
             )}
           </div>
+        )}
+      </div>
 
+      {/* Main input row */}
+      <form
+        onSubmit={handleSubmit}
+        className="px-2 sm:px-4 py-2 sm:py-3 border-t border-slate-700/30 bg-slate-900/80 backdrop-blur-xl"
+      >
+        <div className="flex gap-2 items-end">
+
+          {/* Image upload */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading || isRecording}
-            className="p-2 sm:p-3 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition rounded-lg sm:rounded-xl hover:shadow-lg hover:shadow-cyan-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="p-2 sm:p-2.5 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition rounded-xl disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 mb-0.5"
+            title="Send image"
           >
             <FaImage className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
@@ -585,103 +586,149 @@ const MessageInput = () => {
             className="hidden"
           />
 
-          {/* Enhanced Voice Recording Button - WhatsApp Style */}
-          <div className="relative">
+          {/* Textarea */}
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder={isRecording ? "Recording…" : "Type a message…"}
+            rows={1}
+            disabled={isRecording}
+            className="flex-1 resize-none px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-slate-800/60 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:bg-slate-800/80 transition-all border border-slate-700/50 text-sm leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed max-h-32 overflow-y-auto"
+            style={{ fieldSizing: "content" }}
+          />
+
+          {/* Voice mic button */}
+          <div className="relative flex-shrink-0 mb-0.5">
             <button
               ref={micButtonRef}
               type="button"
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
+              onMouseDown={handlePointerDown}
+              onMouseMove={handlePointerMove}
+              onMouseUp={handlePointerUp}
+              onMouseLeave={isRecording && !isLocked ? handlePointerUp : undefined}
+              onTouchStart={(e) => { e.preventDefault(); handlePointerDown(e.touches[0]); }}
+              onTouchMove={(e) => { e.preventDefault(); handlePointerMove(e.touches[0]); }}
+              onTouchEnd={(e) => { e.preventDefault(); handlePointerUp(e.changedTouches[0]); }}
               disabled={uploading}
-              className={`relative p-2 sm:p-3 transition-all rounded-lg sm:rounded-xl disabled:opacity-40 disabled:cursor-not-allowed select-none ${
+              className={`relative p-2 sm:p-2.5 transition-all rounded-xl disabled:opacity-40 disabled:cursor-not-allowed select-none ${
                 isRecording
-                  ? 'text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/30'
-                  : 'text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 hover:shadow-lg hover:shadow-cyan-500/10'
-              } ${isRecording ? 'animate-pulse' : ''}`}
-              title={isRecording ? 'Recording... Release to send, slide up to cancel' : 'Hold to record voice message'}
+                  ? "text-white bg-red-500 shadow-lg shadow-red-500/40"
+                  : "text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60"
+              }`}
+              title={isRecording ? "Recording… release to send, slide up to cancel" : "Hold to record voice message"}
             >
-              {isRecording ? <FaStop className="w-4 h-4 sm:w-5 sm:h-5" /> : <FaMicrophone className="w-4 h-4 sm:w-5 sm:h-5" />}
+              {isRecording ? (
+                <FaStop className="w-4 h-4 sm:w-5 sm:h-5" />
+              ) : (
+                <FaMicrophone className="w-4 h-4 sm:w-5 sm:h-5" />
+              )}
             </button>
 
-            {/* Recording Animation Overlay */}
+            {/* Pulse ring while recording */}
             {isRecording && (
-              <div className="absolute inset-0 rounded-lg sm:rounded-xl bg-red-500/20 animate-ping"></div>
+              <span className="absolute inset-0 rounded-xl bg-red-500/30 animate-ping pointer-events-none" />
             )}
 
-            {/* Drag Indicator */}
+            {/* Slide-up cancel hint */}
             {isRecording && !isLocked && (
-              <div 
-                className="absolute -top-16 left-1/2 transform -translate-x-1/2 transition-all duration-200"
-                style={{ transform: `translateX(-50%) translateY(${Math.max(-dragOffset, -60)}px)` }}
+              <div
+                className="absolute bottom-full left-1/2 pointer-events-none"
+                style={{
+                  transform: `translateX(-50%) translateY(${-8 - dragOffset * 0.6}px)`,
+                  transition: isDragging ? "none" : "transform 0.2s",
+                }}
               >
-                <div className={`flex flex-col items-center gap-2 p-3 rounded-2xl backdrop-blur-lg border transition-all ${
-                  isDragging 
-                    ? 'bg-red-500/90 border-red-400 text-white shadow-xl' 
-                    : 'bg-slate-800/90 border-slate-600 text-slate-300'
-                }`}>
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                    isDragging ? 'bg-white/20 scale-110' : 'bg-slate-600/50'
-                  }`}>
-                    {isDragging ? <FaXmark className="w-6 h-6" /> : <FaMicrophone className="w-5 h-5" />}
+                <div
+                  className={`flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-2xl border backdrop-blur-md transition-all ${
+                    isDragging
+                      ? "bg-red-600/90 border-red-400 text-white"
+                      : "bg-slate-800/90 border-slate-600/60 text-slate-300"
+                  }`}
+                >
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                      isDragging ? "bg-white/20 scale-110" : "bg-slate-600/40"
+                    }`}
+                  >
+                    {isDragging ? (
+                      <FaXmark className="w-5 h-5" />
+                    ) : (
+                      <FaMicrophone className="w-4 h-4" />
+                    )}
                   </div>
-                  <span className="text-xs font-medium whitespace-nowrap">
-                    {isDragging ? 'Release to cancel' : 'Slide up to cancel'}
+                  <span className="text-[11px] font-medium whitespace-nowrap">
+                    {isDragging ? "Release to cancel" : "Slide up to cancel"}
                   </span>
                 </div>
               </div>
             )}
 
-            {/* Lock Indicator */}
-            {isRecording && dragOffset > 80 && !isLocked && (
-              <div className="absolute -top-24 left-1/2 transform -translate-x-1/2">
-                <div className="flex flex-col items-center gap-1 p-2 rounded-xl bg-cyan-500/90 border border-cyan-400 text-white shadow-xl">
-                  <FaLock className="w-4 h-4" />
-                  <span className="text-xs font-medium">Lock</span>
+            {/* Lock threshold indicator */}
+            {isRecording && dragOffset > 70 && !isLocked && (
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-28 pointer-events-none">
+                <div className="flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl bg-cyan-500/90 border border-cyan-400 text-white">
+                  <FaLock className="w-3 h-3" />
+                  <span className="text-[10px] font-medium">Lock</span>
                 </div>
               </div>
             )}
 
-            {/* Locked Recording UI */}
+            {/* Locked recording controls */}
             {isLocked && (
-              <div className="absolute -top-32 left-1/2 transform -translate-x-1/2">
-                <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-red-500/20 to-red-600/20 backdrop-blur-lg border border-red-500/40 shadow-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full bg-red-400 animate-pulse"></div>
-                    <span className="text-sm font-mono text-red-300 font-semibold">
-                      {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+              <div className="absolute bottom-full right-0 mb-3 pointer-events-auto">
+                <div className="flex flex-col items-center gap-3 p-3 rounded-2xl bg-slate-800/95 border border-slate-600/60 backdrop-blur-lg shadow-2xl min-w-[130px]">
+                  {/* Timer + waveform */}
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                    <span className="text-sm font-mono text-red-300 font-semibold tabular-nums">
+                      {formatTime(recordingTime)}
                     </span>
                   </div>
-                  
-                  {/* Audio Level Indicator */}
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: 8 }, (_, i) => (
+
+                  {/* Audio level bars */}
+                  <div className="flex items-end gap-0.5 h-6">
+                    {Array.from({ length: 10 }, (_, i) => (
                       <div
                         key={i}
-                        className={`w-1 rounded-full transition-all duration-100 ${
-                          audioLevel > (i + 1) / 8 ? 'bg-red-400 h-4' : 'bg-red-400/30 h-2'
-                        }`}
+                        className="w-1.5 rounded-full transition-all duration-75"
+                        style={{
+                          height: `${audioLevel > (i + 1) / 10 ? 100 : 30}%`,
+                          background: audioLevel > (i + 1) / 10
+                            ? `hsl(${180 - i * 12}, 80%, 60%)`
+                            : "rgba(100,120,140,0.35)",
+                        }}
                       />
                     ))}
                   </div>
 
-                  <div className="flex gap-2">
+                  {/* Pause / cancel / send */}
+                  <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => setIsLocked(false)}
-                      className="px-3 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-600/50 rounded-lg transition"
-                      title="Unlock"
+                      onClick={cancelRecording}
+                      className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700/60 rounded-lg transition"
+                      title="Cancel"
                     >
-                      <FaUnlock className="w-3 h-3" />
+                      <FaXmark className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={pauseRecording}
+                      className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-slate-700/60 rounded-lg transition"
+                      title={isRecordingPaused ? "Resume" : "Pause"}
+                    >
+                      {isRecordingPaused ? (
+                        <span className="text-[10px] font-bold">▶</span>
+                      ) : (
+                        <span className="text-[10px] font-bold">⏸</span>
+                      )}
                     </button>
                     <button
                       type="button"
                       onClick={stopRecording}
-                      className="px-4 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-medium rounded-lg hover:from-cyan-400 hover:to-cyan-500 transition shadow-lg shadow-cyan-500/20"
+                      className="p-1.5 bg-cyan-500 hover:bg-cyan-400 text-white rounded-lg transition shadow-md shadow-cyan-500/30"
                       title="Send"
                     >
                       <FaPaperPlane className="w-3 h-3" />
@@ -692,33 +739,44 @@ const MessageInput = () => {
             )}
           </div>
 
-          {/* Error Message */}
-          {recordingError && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-red-500/20 border border-red-500/40 rounded-xl text-sm text-red-300 animate-in fade-in shadow-lg">
-              <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-              {recordingError}
-            </div>
-          )}
-
-          <textarea
-            value={content}
-            onChange={handleInputChange}
-            placeholder="Type a message..."
-            rows={2}
-            disabled={isRecording}
-            className="flex-1 resize-none px-3 sm:px-5 py-2 sm:py-3 rounded-xl sm:rounded-2xl bg-slate-800/60 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:bg-slate-800/80 transition-all border border-slate-700/50 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          />
+          {/* Send text button */}
           <button
             type="submit"
-            disabled={!content.trim() || isRecording}
-            className="flex items-center justify-center p-2.5 sm:p-4 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-xl sm:rounded-2xl hover:from-cyan-400 hover:to-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-cyan-500 disabled:hover:to-cyan-600 transition-all shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40"
+            disabled={!content.trim() || isRecording || uploading}
+            className="flex items-center justify-center p-2 sm:p-2.5 bg-gradient-to-br from-cyan-500 to-cyan-600 text-white rounded-xl hover:from-cyan-400 hover:to-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-cyan-500 disabled:hover:to-cyan-600 transition-all shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 flex-shrink-0 mb-0.5"
           >
             <FaPaperPlane className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
+
+        {/* Inline recording timer strip (non-locked) */}
+        {isRecording && !isLocked && (
+          <div className="flex items-center gap-2 mt-1.5 px-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+            <span className="text-xs font-mono text-red-300 tabular-nums">
+              {formatTime(recordingTime)}
+            </span>
+            <div className="flex items-end gap-0.5 h-4 flex-1">
+              {Array.from({ length: 16 }, (_, i) => (
+                <div
+                  key={i}
+                  className="flex-1 rounded-full transition-all duration-75"
+                  style={{
+                    height: `${audioLevel > (i + 1) / 16 ? 100 : 20}%`,
+                    background: audioLevel > (i + 1) / 16
+                      ? "rgb(34 211 238)"
+                      : "rgba(100,120,140,0.3)",
+                  }}
+                />
+              ))}
+            </div>
+            <span className="text-[10px] text-slate-500">
+              {isRecordingPaused ? "Paused" : "Recording…"}
+            </span>
+          </div>
+        )}
       </form>
     </div>
-
   );
 };
 
