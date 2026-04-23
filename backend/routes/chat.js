@@ -1,5 +1,5 @@
 import express from "express";
-import { getChats, createChat, getMessages, sendMessage, markMessagesSeen, deleteMessage, editMessage, toggleReaction } from "../controllers/chat.controller.js";
+import { getChats, createChat, getMessages, sendMessage, markMessagesSeen, deleteMessage, editMessage } from "../controllers/chat.controller.js";
 import isAuth from "../middlewares/isAuth.js";
 import { upload } from "../middlewares/multer.js";
 
@@ -12,6 +12,5 @@ chatRouter.post("/:chatId/messages", isAuth, upload.single("image"), sendMessage
 chatRouter.put("/:chatId/messages/seen", isAuth, markMessagesSeen);
 chatRouter.delete("/messages/:messageId", isAuth, deleteMessage);
 chatRouter.put("/messages/:messageId", isAuth, editMessage);
-chatRouter.post("/messages/:messageId/reactions", isAuth, toggleReaction);
 
 export default chatRouter;

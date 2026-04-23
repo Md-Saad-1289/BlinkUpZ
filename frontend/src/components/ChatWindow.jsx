@@ -5,7 +5,7 @@ import { addMessage, setReplyingTo, markMessageSeen } from "../redux/chatSlice";
 import useGetMessages from "../Hooks/useGetMessages";
 import MessageInput from "./MessageInput";
 import ImageViewer from "./ImageViewer";
-import { FaPhone, FaVideo, FaEllipsisVertical, FaCheck, FaCheckDouble, FaReply, FaTrash, FaPencil, FaHeart, FaThumbsUp, FaLaugh, FaAngry } from "react-icons/fa6";
+import { FaPhone, FaVideo, FaEllipsisVertical, FaCheck, FaCheckDouble, FaReply, FaTrash, FaPencil } from "react-icons/fa6";
 import axios from "axios";
 import { serverUrl } from "../config";
 
@@ -72,20 +72,6 @@ const ChatWindow = () => {
       setEditingMessage(null);
     } catch (error) {
       console.error("Failed to edit message:", error);
-    }
-  };
-
-  // Toggle reaction function
-  const handleToggleReaction = async (messageId, emoji) => {
-    try {
-      const response = await axios.post(`${serverUrl}/api/chat/messages/${messageId}/reactions`, 
-        { emoji },
-        { withCredentials: true }
-      );
-      // Update local state
-      dispatch({ type: 'chat/updateMessageReactions', payload: { messageId, reactions: response.data.reactions } });
-    } catch (error) {
-      console.error("Failed to toggle reaction:", error);
     }
   };
 
@@ -362,59 +348,6 @@ const ChatWindow = () => {
                         </p>
                       )}
 
-                      {/* Reactions */}
-                      {message.reactions && Object.keys(message.reactions).length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {Object.entries(message.reactions).map(([emoji, users]) => (
-                            <button
-                              key={emoji}
-                              onClick={() => handleToggleReaction(message._id, emoji)}
-                              className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-colors ${
-                                users.includes(userData._id)
-                                  ? 'bg-cyan-600/30 text-cyan-300'
-                                  : 'bg-slate-600/50 text-slate-300 hover:bg-slate-500/50'
-                              }`}
-                            >
-                              <span>{emoji}</span>
-                              <span className="text-xs">{users.length}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Quick reaction buttons */}
-                      {!message.deleted && (
-                        <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => handleToggleReaction(message._id, '👍')}
-                            className="p-1.5 rounded-full bg-slate-600/50 hover:bg-slate-500/50 text-slate-400 hover:text-yellow-400 transition-colors text-sm"
-                            title="Like"
-                          >
-                            👍
-                          </button>
-                          <button
-                            onClick={() => handleToggleReaction(message._id, '❤️')}
-                            className="p-1.5 rounded-full bg-slate-600/50 hover:bg-slate-500/50 text-slate-400 hover:text-red-400 transition-colors text-sm"
-                            title="Love"
-                          >
-                            ❤️
-                          </button>
-                          <button
-                            onClick={() => handleToggleReaction(message._id, '😂')}
-                            className="p-1.5 rounded-full bg-slate-600/50 hover:bg-slate-500/50 text-slate-400 hover:text-yellow-400 transition-colors text-sm"
-                            title="Laugh"
-                          >
-                            😂
-                          </button>
-                          <button
-                            onClick={() => handleToggleReaction(message._id, '😮')}
-                            className="p-1.5 rounded-full bg-slate-600/50 hover:bg-slate-500/50 text-slate-400 hover:text-blue-400 transition-colors text-sm"
-                            title="Wow"
-                          >
-                            😮
-                          </button>
-                        </div>
-                      )}
 
                       {/* Menu button for all messages */}
                       <button

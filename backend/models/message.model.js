@@ -25,11 +25,6 @@ const messageSchema = new mongoose.Schema({
     ref: "Message",
     default: null
   },
-  reactions: {
-    type: Map,
-    of: [String],
-    default: {}
-  },
   read: {
     type: Boolean,
     default: false
