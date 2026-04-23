@@ -202,6 +202,7 @@ const MessageInput = () => {
     e.preventDefault();
     if (!content.trim() || !currentChat) return;
 
+    setUploading(true);
     try {
       const res = await api.post(
         `/api/chat/${currentChat._id}/messages`,
@@ -231,6 +232,9 @@ const MessageInput = () => {
       }
     } catch (error) {
       console.error("Send message failed:", error);
+      alert("Failed to send message. Please try again.");
+    } finally {
+      setUploading(false);
     }
   };
 
