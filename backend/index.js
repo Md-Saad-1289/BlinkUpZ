@@ -55,23 +55,30 @@ app.use((req, res) => {
 });
 
 // Socket.io connection
-const userSocketMap = new Map(); // userId -> socketId
+const userSocketMap = new Map(); // userId -> Set<socketId>
 
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   // User goes online
   socket.on('go_online', async (userId) => {
-    userSocketMap.set(userId, socket.id);
     socket.userId = userId;
-    try {
-      await User.findByIdAndUpdate(userId, { status: 'online' });
-    } catch (error) {
-      console.error('Failed to update user status to online:', error);
+
+    if (!userSocketMap.has(userId)) {
+      userSocketMap.set(userId, new Set());
     }
-    // Broadcast to all users that this user is online
-    io.emit('user_online', userId);
-    console.log(`User ${userId} is now online`);
+    const sockets = userSocketMap.get(userId);
+    sockets.add(socket.id);
+
+    if (sockets.size === 1) {
+      try {
+        await User.findByIdAndUpdate(userId, { status: 'online' });
+      } catch (error) {
+        console.error('Failed to update user status to online:', error);
+      }
+      io.emit('user_online', userId);
+      console.log(`User ${userId} is now online`);
+    }
   });
 
   socket.on('join_chat', (chatId) => {
@@ -124,14 +131,20 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', async () => {
     if (socket.userId) {
-      userSocketMap.delete(socket.userId);
-      try {
-        await User.findByIdAndUpdate(socket.userId, { status: 'offline' });
-      } catch (error) {
-        console.error('Failed to update user status to offline:', error);
+      const sockets = userSocketMap.get(socket.userId);
+      if (sockets) {
+        sockets.delete(socket.id);
+        if (sockets.size === 0) {
+          userSocketMap.delete(socket.userId);
+          try {
+            await User.findByIdAndUpdate(socket.userId, { status: 'offline' });
+          } catch (error) {
+            console.error('Failed to update user status to offline:', error);
+          }
+          io.emit('user_offline', socket.userId);
+          console.log(`User ${socket.userId} is now offline`);
+        }
       }
-      io.emit('user_offline', socket.userId);
-      console.log(`User ${socket.userId} is now offline`);
     }
     console.log('User disconnected:', socket.id);
   });

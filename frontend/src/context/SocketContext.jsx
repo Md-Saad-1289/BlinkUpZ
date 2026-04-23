@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useSelector, useDispatch } from 'react-redux';
 import { serverUrl } from '../config.js';
-import { setOnlineUsers } from '../redux/userSlice.js';
+import { setOnlineUsers, setAllOnlineUsers } from '../redux/userSlice.js';
 import { showLocalNotification } from '../utils/notifications.js';
 
 const SocketContext = createContext();
@@ -26,6 +26,13 @@ export const SocketProvider = ({ children }) => {
       // Tell server user is online
       newSocket.on('connect', () => {
         newSocket.emit('go_online', userData._id);
+        newSocket.emit('get_online_users', (onlineUserIds) => {
+          const onlineMap = {};
+          onlineUserIds.forEach((id) => {
+            onlineMap[id] = 'online';
+          });
+          dispatch(setAllOnlineUsers(onlineMap));
+        });
       });
 
       // Listen for online users

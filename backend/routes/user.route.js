@@ -1,12 +1,12 @@
 import express from "express";
-import { getCurrentUser, updateProfile } from "../controllers/user.controller.js";
+import { getCurrentUser, updateProfile, getAllUsers } from "../controllers/user.controller.js";
 import isAuth from "../middlewares/isAuth.js";
 import { upload } from "../middlewares/multer.js";
-import User from "../models/user.model.js";
 
 const userRouter = express.Router();
 
 userRouter.get("/current", isAuth, getCurrentUser);
+userRouter.get("/all", isAuth, getAllUsers);
 userRouter.post("/profile", isAuth, upload.single("image"), updateProfile);
 
 // Search users

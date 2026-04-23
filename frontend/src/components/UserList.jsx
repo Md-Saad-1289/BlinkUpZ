@@ -85,11 +85,14 @@ const UserList = ({ onSelectUser, onClose }) => {
                       alt={user.username}
                       className="w-12 h-12 rounded-2xl object-cover border-2 border-slate-700 group-hover:border-cyan-500/60 shadow-md group-hover:shadow-cyan-500/20 transition-all"
                     />
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-slate-900"></div>
+                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${user.status === 'online' ? 'bg-green-500' : 'bg-slate-500'}`} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-white font-semibold group-hover:text-cyan-400 transition truncate">{user.name || user.username}</p>
                     <p className="text-slate-500 text-xs truncate">{user.email}</p>
+                    <p className={`text-[10px] mt-1 ${user.status === 'online' ? 'text-green-300' : 'text-slate-500'}`}>
+                      {user.status === 'online' ? 'Online' : 'Offline'}
+                    </p>
                   </div>
                   <div className="w-9 h-9 rounded-xl bg-slate-800/60 flex items-center justify-center group-hover:bg-cyan-500/20 group-hover:scale-110 transition-all">
                     <FaUser className="w-4 h-4 text-slate-500 group-hover:text-cyan-400" />

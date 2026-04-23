@@ -56,3 +56,18 @@ export const updateProfile = async (req, res) => {
     res.status(500).json({ message: "Profile update failed: " + error.message });
   }
 };
+
+// Get all users with status (excluding current user)
+export const getAllUsers = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const users = await User.find({ _id: { $ne: userId } })
+      .select("username name email image status")
+      .sort({ status: -1, name: 1 });
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Get all users error:", error);
+    res.status(500).json({ message: "Failed to fetch users" });
+  }
+};
