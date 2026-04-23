@@ -10,7 +10,7 @@ export const getChats = async (req, res) => {
     const chats = await Chat.find({
       participants: userId
     })
-    .populate("participants", "username name image")
+    .populate("participants", "username name image status")
     .populate("lastMessage")
     .sort({ updatedAt: -1 });
 
@@ -46,7 +46,7 @@ export const createChat = async (req, res) => {
     });
 
     const populatedChat = await Chat.findById(chat._id)
-      .populate("participants", "username name image");
+      .populate("participants", "username name image status");
 
     res.status(201).json(populatedChat);
   } catch (error) {

@@ -8,6 +8,7 @@ import authRouter from "./routes/auth.js";
 import cors from "cors";
 import userRouter from "./routes/user.route.js";
 import chatRouter from "./routes/chat.js";
+import User from "./models/user.model.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
@@ -60,9 +61,14 @@ io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   // User goes online
-  socket.on('go_online', (userId) => {
+  socket.on('go_online', async (userId) => {
     userSocketMap.set(userId, socket.id);
     socket.userId = userId;
+    try {
+      await User.findByIdAndUpdate(userId, { status: 'online' });
+    } catch (error) {
+      console.error('Failed to update user status to online:', error);
+    }
     // Broadcast to all users that this user is online
     io.emit('user_online', userId);
     console.log(`User ${userId} is now online`);
@@ -116,9 +122,14 @@ io.on('connection', (socket) => {
     callback(Array.from(userSocketMap.keys()));
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     if (socket.userId) {
       userSocketMap.delete(socket.userId);
+      try {
+        await User.findByIdAndUpdate(socket.userId, { status: 'offline' });
+      } catch (error) {
+        console.error('Failed to update user status to offline:', error);
+      }
       io.emit('user_offline', socket.userId);
       console.log(`User ${socket.userId} is now offline`);
     }

@@ -93,7 +93,7 @@ const ChatWindow = () => {
   const otherParticipant = currentChat?.participants?.find(
     (p) => p._id !== userData?._id
   );
-  const isOtherOnline = onlineUsers[otherParticipant?._id] === 'online';
+  const isOtherOnline = onlineUsers[otherParticipant?._id] === 'online' || otherParticipant?.status === 'online';
 
   // Handle ESC key to close image viewer
   useEffect(() => {

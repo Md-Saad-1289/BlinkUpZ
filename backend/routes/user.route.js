@@ -26,7 +26,7 @@ userRouter.get("/search", isAuth, async (req, res) => {
           ]
         }
       ]
-    }).select("username name email image").limit(10);
+    }).select("username name email image status").limit(10);
 
     res.status(200).json(users);
   } catch (error) {
