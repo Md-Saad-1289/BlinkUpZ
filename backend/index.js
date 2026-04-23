@@ -124,6 +124,16 @@ io.on('connection', (socket) => {
     socket.to(chatId).emit('typing_stop', { chatId, userId });
   });
 
+  socket.on('edit_message', (data) => {
+    const { chatId, message } = data;
+    io.to(chatId).emit('message_updated', message);
+  });
+
+  socket.on('delete_message', (data) => {
+    const { chatId, message } = data;
+    io.to(chatId).emit('message_deleted', message);
+  });
+
   // Get online users
   socket.on('get_online_users', (callback) => {
     callback(Array.from(userSocketMap.keys()));

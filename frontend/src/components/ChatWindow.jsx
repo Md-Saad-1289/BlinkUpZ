@@ -49,11 +49,13 @@ const ChatWindow = () => {
   // Delete message function
   const handleDeleteMessage = async (messageId) => {
     try {
-      await axios.delete(`${serverUrl}/api/chat/messages/${messageId}`, {
+      const response = await axios.delete(`${serverUrl}/api/chat/messages/${messageId}`, {
         withCredentials: true
       });
       // Update local state - mark as deleted
+      const deletedMessage = response.data.deletedMessage;
       dispatch({ type: 'chat/updateMessageContent', payload: { messageId, content: 'This message was deleted', deleted: true } });
+      socket?.emit('delete_message', { chatId: currentChat._id, message: deletedMessage });
       setShowMessageMenu(null);
     } catch (error) {
       console.error("Failed to delete message:", error);
@@ -67,8 +69,10 @@ const ChatWindow = () => {
         { content: newContent },
         { withCredentials: true }
       );
+      const editedMessage = response.data.editedMessage;
       // Update local state
       dispatch({ type: 'chat/updateMessageContent', payload: { messageId, content: newContent, edited: true } });
+      socket?.emit('edit_message', { chatId: currentChat._id, message: editedMessage });
       setEditingMessage(null);
     } catch (error) {
       console.error("Failed to edit message:", error);
@@ -143,6 +147,29 @@ const ChatWindow = () => {
         }
       });
 
+      socket.on("message_updated", (message) => {
+        dispatch({
+          type: 'chat/updateMessageContent',
+          payload: {
+            messageId: message._id,
+            content: message.content,
+            edited: message.edited,
+            deleted: message.deleted
+          }
+        });
+      });
+
+      socket.on("message_deleted", (message) => {
+        dispatch({
+          type: 'chat/updateMessageContent',
+          payload: {
+            messageId: message._id,
+            content: message.content,
+            deleted: message.deleted
+          }
+        });
+      });
+
       socket.on("typing_start", ({ userId, chatId }) => {
         if (chatId === currentChat._id && userId !== userData._id) {
           setTypingUsers(prev => {
@@ -163,6 +190,8 @@ const ChatWindow = () => {
       return () => {
         socket.off("receive_message");
         socket.off("message_seen");
+        socket.off("message_updated");
+        socket.off("message_deleted");
         socket.off("typing_start");
         socket.off("typing_stop");
       };
