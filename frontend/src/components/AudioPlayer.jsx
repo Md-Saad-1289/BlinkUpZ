@@ -10,6 +10,20 @@ import {
 } from 'react-icons/fa6';
 
 const AudioPlayer = ({ src, isOwn = false }) => {
+
+  // Validate src
+  if (!src || typeof src !== 'string' || !src.startsWith('http')) {
+    console.error('Invalid audio src:', src);
+    return (
+      <div className="flex items-center justify-center p-4 rounded-2xl bg-red-500/10 border border-red-500/40">
+        <div className="text-center">
+          <FaVolumeXmark className="w-6 h-6 mx-auto mb-2 text-red-400" />
+          <p className="text-xs text-red-300">Invalid audio source</p>
+        </div>
+      </div>
+    );
+  }
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -17,6 +31,8 @@ const AudioPlayer = ({ src, isOwn = false }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const [waveformBars] = useState(() => {
     const bars = [];
     for (let i = 0; i < 20; i++) {
@@ -29,25 +45,60 @@ const AudioPlayer = ({ src, isOwn = false }) => {
   const progressRef = useRef(null);
   const animationRef = useRef(null);
 
+  // Test audio URL accessibility
+  useEffect(() => {
+    if (!src) return;
+    
+    fetch(src, { method: 'HEAD' })
+      .then(response => {
+        if (!response.ok) {
+          console.error('Audio URL not accessible:', src, 'Status:', response.status);
+          setHasError(true);
+          setErrorMessage(`Audio URL not accessible (Status: ${response.status})`);
+        } else {
+          console.log('Audio URL is accessible:', src);
+        }
+      })
+      .catch(error => {
+        console.error('Failed to fetch audio URL:', src, error);
+        setHasError(true);
+        setErrorMessage('Failed to access audio file. It may have been deleted or is temporarily unavailable.');
+      });
+  }, [src]);
+
   // 🎧 Sync audio events
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio || !src) return;
 
     const updateTime = () => setCurrentTime(audio.currentTime);
     const updateDuration = () => {
       setDuration(audio.duration || 0);
       setIsLoading(false);
+      setHasError(false);
     };
     const handleEnded = () => setIsPlaying(false);
-    const handleLoadStart = () => setIsLoading(true);
-    const handleCanPlay = () => setIsLoading(false);
+    const handleLoadStart = () => {
+      setIsLoading(true);
+      setHasError(false);
+    };
+    const handleCanPlay = () => {
+      setIsLoading(false);
+      setHasError(false);
+    };
+    const handleError = (e) => {
+      console.error('Audio loading error:', e, 'src:', src);
+      setIsLoading(false);
+      setHasError(true);
+      setErrorMessage(`Failed to load audio. URL: ${src.substring(0, 50)}...`);
+    };
 
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('loadstart', handleLoadStart);
     audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('error', handleError);
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
@@ -55,13 +106,18 @@ const AudioPlayer = ({ src, isOwn = false }) => {
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('error', handleError);
     };
+  }, [src]);
   }, []);
 
   // ▶️ Play / Pause
   const togglePlay = async () => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) {
+      console.error('Audio element not found');
+      return;
+    }
 
     try {
       if (isPlaying) {
@@ -72,6 +128,8 @@ const AudioPlayer = ({ src, isOwn = false }) => {
       setIsPlaying(!isPlaying);
     } catch (err) {
       console.error('Playback error:', err);
+      setHasError(true);
+      setErrorMessage('Failed to play audio. The file may be corrupted or your browser may not support this format.');
     }
   };
 
@@ -124,14 +182,15 @@ const AudioPlayer = ({ src, isOwn = false }) => {
     setPlaybackRate(rate);
   };
 
-  // 📥 Download audio
-  const downloadAudio = () => {
-    const link = document.createElement('a');
-    link.href = src;
-    link.download = `voice-message-${Date.now()}.wav`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // � Retry loading audio
+  const retryAudio = () => {
+    const audio = audioRef.current;
+    if (audio) {
+      audio.load(); // Reload the audio element
+      setHasError(false);
+      setIsLoading(true);
+      setErrorMessage('');
+    }
   };
 
   // ⏱️ Format time
@@ -152,12 +211,47 @@ const AudioPlayer = ({ src, isOwn = false }) => {
         ? 'bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-cyan-600/20 border-cyan-400/40' 
         : 'bg-gradient-to-br from-slate-700/50 via-slate-600/30 to-slate-700/50 border-slate-600/50'
     }`}>
-      <audio ref={audioRef} src={src} preload="metadata" />
+      <audio key={src} ref={audioRef} src={src} preload="metadata" crossOrigin="anonymous" />
 
       {/* Loading Overlay */}
       {isLoading && (
         <div className="absolute inset-0 bg-black/20 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
           <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+      )}
+
+      {/* Error Overlay */}
+      {hasError && (
+        <div className="absolute inset-0 bg-red-500/10 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
+          <div className="text-center p-4">
+            <div className="w-8 h-8 mx-auto mb-2 text-red-400">
+              <FaVolumeXmark className="w-full h-full" />
+            </div>
+            <p className="text-xs text-red-300 font-medium">Audio Error</p>
+            <p className="text-xs text-red-400 mt-1 mb-3 max-w-full break-all">{errorMessage}</p>
+            <div className="flex gap-2 justify-center flex-wrap">
+              <button
+                onClick={retryAudio}
+                className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs rounded-lg transition"
+              >
+                Retry
+              </button>
+              <button
+                onClick={downloadAudio}
+                className="px-3 py-1 bg-slate-500/20 hover:bg-slate-500/30 text-slate-300 text-xs rounded-lg transition"
+              >
+                Download
+              </button>
+              <a
+                href={src}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 text-xs rounded-lg transition"
+              >
+                Open URL
+              </a>
+            </div>
+          </div>
         </div>
       )}
 

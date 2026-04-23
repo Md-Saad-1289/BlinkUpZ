@@ -150,7 +150,11 @@ const MessageInput = () => {
       microphoneRef.current = microphone;
 
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm'
+        mimeType: 
+          MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' :
+          MediaRecorder.isTypeSupported('audio/mpeg') ? 'audio/mpeg' :
+          MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' :
+          'audio/webm'
       });
       mediaRecorderRef.current = mediaRecorder;
 
@@ -312,7 +316,9 @@ const MessageInput = () => {
     setUploading(true);
     setShowRecordingUI(false);
     const formData = new FormData();
-    formData.append("audio", audioBlob, `voice-message-${Date.now()}.webm`);
+    const fileExtension = mediaRecorderRef.current?.mimeType?.includes('mp4') ? 'm4a' :
+                         mediaRecorderRef.current?.mimeType?.includes('mpeg') ? 'mp3' : 'webm';
+    formData.append("audio", audioBlob, `voice-message-${Date.now()}.${fileExtension}`);
     formData.append("messageType", "audio");
     if (replyingTo) {
       formData.append("replyTo", replyingTo._id);

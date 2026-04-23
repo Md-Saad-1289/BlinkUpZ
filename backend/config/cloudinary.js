@@ -19,9 +19,13 @@ cloudinary.config({
 
 const uploadOnCloudinary = async (filePath, folder = "chat_media") => {
   try {
+    // Determine resource type based on folder
+    const resourceType = folder === "chat_audio" ? "video" : "auto";
+    
     const result = await cloudinary.uploader.upload(filePath, {
       folder,
-      resource_type: "auto",
+      resource_type: resourceType,
+      public_id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     });
     fs.unlinkSync(filePath); // remove temp file
     return result.secure_url;

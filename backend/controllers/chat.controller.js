@@ -78,6 +78,13 @@ export const getMessages = async (req, res) => {
       })
       .sort({ createdAt: 1 });
 
+    // Debug: log audio messages
+    messages.forEach(msg => {
+      if (msg.messageType === 'audio') {
+        console.log(`Retrieved audio message: ${msg._id}, content: ${msg.content}`);
+      }
+    });
+
     res.status(200).json(messages);
   } catch (error) {
     console.error("getMessages error:", error);
@@ -121,7 +128,11 @@ export const sendMessage = async (req, res) => {
     // Handle file uploads (images and audio)
     if (uploadedFile) {
       const uploadFolder = messageTypeFinal === "audio" ? "chat_audio" : "chat_images";
+      console.log(`Uploading ${messageTypeFinal} file to Cloudinary folder: ${uploadFolder}`);
+      console.log(`File path: ${uploadedFile.path}, MIME type: ${uploadedFile.mimetype}`);
       const cloudinaryUrl = await uploadOnCloudinary(uploadedFile.path, uploadFolder);
+      console.log(`Cloudinary URL for ${messageTypeFinal}: ${cloudinaryUrl}`);
+      console.log(`Message content set to: ${cloudinaryUrl}`);
       messageContent = cloudinaryUrl;
       messageTypeFinal = audioFile ? "audio" : "image";
     }
