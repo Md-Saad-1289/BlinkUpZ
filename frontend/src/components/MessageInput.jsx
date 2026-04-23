@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useSocket } from "../context/SocketContext";
 import api from '../api.js'
@@ -19,11 +19,31 @@ const MessageInput = () => {
   const { currentChat, replyingTo } = useSelector((state) => state.chat);
   const { userData } = useSelector((state) => state.user);
 
+  useEffect(() => {
+    return () => {
+      // Cleanup: stop typing when component unmounts or chat changes
+      if (socket && currentChat && isTyping) {
+        socket.emit("typing_stop", { 
+          chatId: currentChat._id, 
+          userId: userData._id,
+          userName: userData.name || userData.username
+        });
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, [currentChat, socket, userData, isTyping]);
+
   const handleInputChange = (e) => {
     setContent(e.target.value);
     
     if (socket && currentChat && !isTyping) {
-      socket.emit("typing_start", { chatId: currentChat._id, userId: userData._id });
+      socket.emit("typing_start", { 
+        chatId: currentChat._id, 
+        userId: userData._id,
+        userName: userData.name || userData.username
+      });
       setIsTyping(true);
     }
     
@@ -35,7 +55,11 @@ const MessageInput = () => {
     // Set new timeout to stop typing
     typingTimeoutRef.current = setTimeout(() => {
       if (socket && currentChat && isTyping) {
-        socket.emit("typing_stop", { chatId: currentChat._id, userId: userData._id });
+        socket.emit("typing_stop", { 
+          chatId: currentChat._id, 
+          userId: userData._id,
+          userName: userData.name || userData.username
+        });
         setIsTyping(false);
       }
     }, 1000);
@@ -98,7 +122,11 @@ const MessageInput = () => {
       
       // Stop typing
       if (isTyping) {
-        socket?.emit("typing_stop", { chatId: currentChat._id, userId: userData._id });
+        socket?.emit("typing_stop", { 
+          chatId: currentChat._id, 
+          userId: userData._id,
+          userName: userData.name || userData.username
+        });
         setIsTyping(false);
       }
     } catch (error) {

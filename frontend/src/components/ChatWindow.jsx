@@ -41,7 +41,7 @@ const ChatWindow = () => {
   const [viewingImage, setViewingImage] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [showMessageMenu, setShowMessageMenu] = useState(null); // messageId for menu
-  const [typingUsers, setTypingUsers] = useState([]);
+  const [typingUsers, setTypingUsers] = useState([]); // Array of {userId, userName}
   const [isWindowFocused, setIsWindowFocused] = useState(true);
 
   useGetMessages(currentChat?._id);
@@ -170,20 +170,21 @@ const ChatWindow = () => {
         });
       });
 
-      socket.on("typing_start", ({ userId, chatId }) => {
+      socket.on("typing_start", ({ userId, chatId, userName }) => {
         if (chatId === currentChat._id && userId !== userData._id) {
           setTypingUsers(prev => {
-            if (!prev.includes(userId)) {
-              return [...prev, userId];
+            const exists = prev.some(user => user.userId === userId);
+            if (!exists) {
+              return [...prev, { userId, userName }];
             }
             return prev;
           });
         }
       });
 
-      socket.on("typing_stop", ({ userId, chatId }) => {
+      socket.on("typing_stop", ({ userId, chatId, userName }) => {
         if (chatId === currentChat._id) {
-          setTypingUsers(prev => prev.filter(id => id !== userId));
+          setTypingUsers(prev => prev.filter(user => user.userId !== userId));
         }
       });
 
@@ -265,7 +266,15 @@ const ChatWindow = () => {
               <p className={`text-[10px] sm:text-xs flex items-center gap-1 font-medium ${isOtherOnline ? 'text-green-400/90' : 'text-slate-500'}`}>
                 {typingUsers.length > 0 ? (
                   <span className="text-cyan-400/90">
-                    {typingUsers.length === 1 ? 'typing...' : `${typingUsers.length} typing...`}
+                    {currentChat?.isGroup ? (
+                      typingUsers.length === 1 
+                        ? `${typingUsers[0].userName} is typing...`
+                        : typingUsers.length === 2
+                        ? `${typingUsers[0].userName} and ${typingUsers[1].userName} are typing...`
+                        : `${typingUsers[0].userName} and ${typingUsers.length - 1} others are typing...`
+                    ) : (
+                      'typing...'
+                    )}
                   </span>
                 ) : isOtherOnline ? (
                   <>
@@ -501,6 +510,30 @@ const ChatWindow = () => {
         ))}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Typing Indicator */}
+      {typingUsers.length > 0 && (
+        <div className="flex-shrink-0 px-4 py-2">
+          <div className="flex items-center gap-2 text-cyan-400/90 text-sm">
+            <div className="flex gap-1">
+              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+            <span>
+              {currentChat?.isGroup ? (
+                typingUsers.length === 1 
+                  ? `${typingUsers[0].userName} is typing...`
+                  : typingUsers.length === 2
+                  ? `${typingUsers[0].userName} and ${typingUsers[1].userName} are typing...`
+                  : `${typingUsers[0].userName} and ${typingUsers.length - 1} others are typing...`
+              ) : (
+                'typing...'
+              )}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Message Input */}
       <div className="flex-shrink-0">
