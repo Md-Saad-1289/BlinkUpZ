@@ -316,93 +316,143 @@ const ChatWindow = () => {
                       </div>
                     )}
                     
-                    {/* Message Bubble */}
-                    <div
-                      className={`relative group px-4 py-3 rounded-2xl shadow-sm transition-all duration-200 ${
-                        isOwn
-                          ? "bg-cyan-500 text-white rounded-br-md ml-12"
-                          : "bg-slate-700 text-slate-100 rounded-bl-md mr-12"
-                      }`}
-                    >
-                      {/* Deleted message */}
-                      {message.deleted ? (
-                        <p className="text-sm italic text-slate-400 opacity-60">
-                          <span className="line-through">This message was deleted</span>
-                        </p>
-                      ) : message.messageType === "image" ? (
-                        <div 
-                          className="relative cursor-pointer max-w-xs"
-                          onClick={() => setViewingImage(message.content)}
-                        >
-                          <img
-                            src={message.content}
-                            alt="Sent image"
-                            className="rounded-lg max-h-64 object-cover"
-                            onError={(e) => e.target.style.display = "none"}
-                          />
+                    <div className={`flex items-start gap-2 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                      {!isOwn && (
+                        <div className="relative flex-shrink-0">
+                          <button
+                            onClick={() => setShowMessageMenu(message._id)}
+                            className="p-1.5 rounded-full bg-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-600/80 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                          >
+                            <FaEllipsisVertical className="w-3 h-3" />
+                          </button>
+                          {showMessageMenu === message._id && (
+                            <div className="absolute left-0 top-full mt-2 bg-slate-800 rounded-lg shadow-lg border border-slate-600 py-1 z-50 min-w-[140px]">
+                              <button
+                                onClick={() => {
+                                  dispatch(setReplyingTo(message));
+                                  setShowMessageMenu(null);
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2"
+                              >
+                                <FaReply className="w-4 h-4" />
+                                Reply
+                              </button>
+                              {isOwn && !message.deleted && message.messageType !== "image" && (
+                                <button
+                                  onClick={() => {
+                                    setEditingMessage(message);
+                                    setShowMessageMenu(null);
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2"
+                                >
+                                  <FaPencil className="w-4 h-4" />
+                                  Edit
+                                </button>
+                              )}
+                              {isOwn && !message.deleted && (
+                                <button
+                                  onClick={() => {
+                                    handleDeleteMessage(message._id);
+                                    setShowMessageMenu(null);
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2"
+                                >
+                                  <FaTrash className="w-4 h-4" />
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                          {message.content}
-                          {message.edited && <span className="text-xs ml-1 opacity-70">(edited)</span>}
-                        </p>
                       )}
 
-
-                      {/* Menu button for all messages */}
-                      <button
-                        onClick={() => setShowMessageMenu(message._id)}
-                        className={`absolute top-2 ${isOwn ? 'left-2' : 'right-2'} p-1.5 rounded-full bg-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-600/80 transition-all duration-200 opacity-0 group-hover:opacity-100`}
+                      <div
+                        className={`relative group px-4 py-3 rounded-2xl shadow-sm transition-all duration-200 ${
+                          isOwn
+                            ? "bg-cyan-500 text-white rounded-br-md ml-12"
+                            : "bg-slate-700 text-slate-100 rounded-bl-md mr-12"
+                        }`}
                       >
-                        <FaEllipsisVertical className="w-3 h-3" />
-                      </button>
-
-                      {/* Subtle shine effect for own messages */}
-                      {isOwn && !message.deleted && (
-                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/5 to-white/0 pointer-events-none" />
-                      )}
-                    </div>
-                    
-                    {/* Message Menu */}
-                    {showMessageMenu === message._id && (
-                      <div className={`absolute ${isOwn ? 'right-2' : 'left-2'} top-8 bg-slate-800 rounded-lg shadow-lg border border-slate-600 py-1 z-50 min-w-[140px]`}>
-                        <button
-                          onClick={() => {
-                            dispatch(setReplyingTo(message));
-                            setShowMessageMenu(null);
-                          }}
-                          className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2"
-                        >
-                          <FaReply className="w-4 h-4" />
-                          Reply
-                        </button>
-                        {isOwn && !message.deleted && message.messageType !== "image" && (
-                          <button
-                            onClick={() => {
-                              setEditingMessage(message);
-                              setShowMessageMenu(null);
-                            }}
-                            className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2"
+                        {/* Deleted message */}
+                        {message.deleted ? (
+                          <p className="text-sm italic text-slate-400 opacity-60">
+                            <span className="line-through">This message was deleted</span>
+                          </p>
+                        ) : message.messageType === "image" ? (
+                          <div 
+                            className="relative cursor-pointer max-w-xs"
+                            onClick={() => setViewingImage(message.content)}
                           >
-                            <FaPencil className="w-4 h-4" />
-                            Edit
-                          </button>
+                            <img
+                              src={message.content}
+                              alt="Sent image"
+                              className="rounded-lg max-h-64 object-cover"
+                              onError={(e) => e.target.style.display = "none"}
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                            {message.content}
+                            {message.edited && <span className="text-xs ml-1 opacity-70">(edited)</span>}
+                          </p>
                         )}
+
+                        {/* Subtle shine effect for own messages */}
                         {isOwn && !message.deleted && (
-                          <button
-                            onClick={() => {
-                              handleDeleteMessage(message._id);
-                              setShowMessageMenu(null);
-                            }}
-                            className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2"
-                          >
-                            <FaTrash className="w-4 h-4" />
-                            Delete
-                          </button>
+                          <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/5 to-white/0 pointer-events-none" />
                         )}
                       </div>
-                    )}
-                    
+
+                      {isOwn && (
+                        <div className="relative flex-shrink-0">
+                          <button
+                            onClick={() => setShowMessageMenu(message._id)}
+                            className="p-1.5 rounded-full bg-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-600/80 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                          >
+                            <FaEllipsisVertical className="w-3 h-3" />
+                          </button>
+                          {showMessageMenu === message._id && (
+                            <div className="absolute right-0 top-full mt-2 bg-slate-800 rounded-lg shadow-lg border border-slate-600 py-1 z-50 min-w-[140px]">
+                              <button
+                                onClick={() => {
+                                  dispatch(setReplyingTo(message));
+                                  setShowMessageMenu(null);
+                                }}
+                                className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2"
+                              >
+                                <FaReply className="w-4 h-4" />
+                                Reply
+                              </button>
+                              {isOwn && !message.deleted && message.messageType !== "image" && (
+                                <button
+                                  onClick={() => {
+                                    setEditingMessage(message);
+                                    setShowMessageMenu(null);
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2"
+                                >
+                                  <FaPencil className="w-4 h-4" />
+                                  Edit
+                                </button>
+                              )}
+                              {isOwn && !message.deleted && (
+                                <button
+                                  onClick={() => {
+                                    handleDeleteMessage(message._id);
+                                    setShowMessageMenu(null);
+                                  }}
+                                  className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2"
+                                >
+                                  <FaTrash className="w-4 h-4" />
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Timestamp and Read Status */}
                     <div className={`flex items-center gap-1 px-2 text-xs text-slate-500 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
                       <span>
