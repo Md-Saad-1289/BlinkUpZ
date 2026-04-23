@@ -414,16 +414,16 @@ const ChatWindow = () => {
                             😮
                           </button>
                         </div>
-                      )}Menu button for all messages */}
+                      )}
+
+                      {/* Menu button for all messages */}
                       <button
                         onClick={() => setShowMessageMenu(message._id)}
-                        className={`absolute top-1 ${isOwn ? 'left-1' : 'right-1'} p-1 rounded-full bg-slate-600/50 text-slate-400 hover:text-white hover:bg-slate-500/50 transition-all duration-200 opacity-0 group-hover:opacity-1
-                        onClick={() => setShowMessageMenu(message._id)}
-                        className={`absolute top-2 ${isOwn ? 'left-2' : 'right-2'} p-1.5 rounded-full bg-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-600/80 transition-all duration-200`}
+                        className={`absolute top-2 ${isOwn ? 'left-2' : 'right-2'} p-1.5 rounded-full bg-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-600/80 transition-all duration-200 opacity-0 group-hover:opacity-100`}
                       >
                         <FaEllipsisVertical className="w-3 h-3" />
                       </button>
-                      
+
                       {/* Subtle shine effect for own messages */}
                       {isOwn && !message.deleted && (
                         <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-white/0 via-white/5 to-white/0 pointer-events-none" />
