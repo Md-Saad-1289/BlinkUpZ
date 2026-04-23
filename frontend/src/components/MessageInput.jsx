@@ -91,8 +91,7 @@ const MessageInput = () => {
     try {
       const res = await api.post(
         `/api/chat/${currentChat._id}/messages`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        formData
       );
 
       dispatch(addMessage(res.data));
@@ -181,8 +180,7 @@ const MessageInput = () => {
     try {
       const res = await api.post(
         `/api/chat/${currentChat._id}/messages`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
+        formData
       );
 
       dispatch(addMessage(res.data));
