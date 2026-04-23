@@ -133,18 +133,11 @@ const MessageInput = () => {
         <div className="flex gap-2 sm:gap-3 items-center">
           <button
             type="button"
-            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="p-2 sm:p-3 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition rounded-lg sm:rounded-xl hover:shadow-lg hover:shadow-cyan-500/10"
-          >
-            <FaFaceSmile className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-          <button
-            type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
             className="p-2 sm:p-3 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition rounded-lg sm:rounded-xl hover:shadow-lg hover:shadow-cyan-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
-              <FaImage className="w-4 h-4 sm:w-5 sm:h-5" />
-            )}
+          >
+            <FaImage className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
           <input
             type="file"
@@ -153,12 +146,12 @@ const MessageInput = () => {
             accept="image/*"
             className="hidden"
           />
-          <input
-            type="text"
+          <textarea
             value={content}
             onChange={handleInputChange}
-            placeholder="Type..."
-            className="flex-1 px-3 sm:px-5 py-2 sm:py-3 rounded-xl sm:rounded-2xl bg-slate-800/60 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:bg-slate-800/80 transition-all border border-slate-700/50 text-sm"
+            placeholder="Type a message..."
+            rows={2}
+            className="flex-1 resize-none px-3 sm:px-5 py-2 sm:py-3 rounded-xl sm:rounded-2xl bg-slate-800/60 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:bg-slate-800/80 transition-all border border-slate-700/50 text-sm"
           />
           <button
             type="submit"
