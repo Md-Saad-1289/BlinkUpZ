@@ -6,7 +6,7 @@ import { addMessage, setReplyingTo } from "../redux/chatSlice";
 import {
   FaPaperPlane, FaImage, FaXmark, FaReply,
   FaFaceSmile, FaMicrophone, FaStop,
-  FaLock, FaUnlock
+  FaLock
 } from "react-icons/fa6";
 import EmojiPicker from 'emoji-picker-react';
 
@@ -457,40 +457,87 @@ const MessageInput = () => {
 
   // ── Mouse / touch drag-to-record ─────────────────────────────────────────
 
-  const handlePointerDown = (e) => {
+  // ── Mouse handlers ───────────────────────────────────────────────────────
+
+  const handleMouseDown = (e) => {
     if (uploading || isRecording) return;
     e.preventDefault();
-    dragStartY.current = e.clientY ?? e.touches?.[0]?.clientY;
+    dragStartY.current = e.clientY;
     dragStartTime.current = Date.now();
     startRecording();
   };
 
-  const handlePointerMove = (e) => {
-    if (!isRecording || isLocked) return;
-    const y = e.clientY ?? e.touches?.[0]?.clientY;
-    const delta = dragStartY.current - y;
+  const handleMouseMove = (e) => {
+    if (!isRecordingRef.current || isLocked) return;
+    const delta = dragStartY.current - e.clientY;
     setDragOffset(Math.max(0, Math.min(delta, 100)));
     setIsDragging(delta > 10);
   };
 
-  const handlePointerUp = (e) => {
-    if (!isRecording) return;
-    const y = e.clientY ?? e.changedTouches?.[0]?.clientY ?? dragStartY.current;
-    const delta = dragStartY.current - y;
+  const handleMouseUp = (e) => {
+    if (!isRecordingRef.current) return;
+    const delta = dragStartY.current - e.clientY;
     const held = Date.now() - dragStartTime.current;
+    resolveRecording(delta, held);
+  };
 
-    if (delta > 80 && !isLocked) {
-      setIsLocked(true);
-    } else if (delta > 50 && held > 500) {
-      cancelRecording();
-    } else if (held < 300) {
-      cancelRecording();
-    } else {
-      stopRecording();
-    }
+  const handleMouseLeave = (e) => {
+    // Only cancel drag-visual, never cancel recording — user may re-enter
+    if (!isRecordingRef.current || isLocked) return;
+    // If they leave the button while dragging up past threshold, treat as cancel
+    const delta = dragStartY.current - e.clientY;
+    if (delta > 60) cancelRecording();
+  };
 
+  // ── Touch handlers ───────────────────────────────────────────────────────
+
+  const handleTouchStart = (e) => {
+    if (uploading || isRecording) return;
+    e.preventDefault();
+    dragStartY.current = e.touches[0].clientY;
+    dragStartTime.current = Date.now();
+    startRecording();
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isRecordingRef.current || isLocked) return;
+    e.preventDefault();
+    const delta = dragStartY.current - e.touches[0].clientY;
+    setDragOffset(Math.max(0, Math.min(delta, 100)));
+    setIsDragging(delta > 10);
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!isRecordingRef.current) return;
+    e.preventDefault();
+    const delta = dragStartY.current - (e.changedTouches[0]?.clientY ?? dragStartY.current);
+    const held = Date.now() - dragStartTime.current;
+    resolveRecording(delta, held);
+  };
+
+  // ── Shared resolution logic ──────────────────────────────────────────────
+
+  const resolveRecording = (delta, held) => {
     setIsDragging(false);
     setDragOffset(0);
+
+    if (delta > 80 && !isLocked) {
+      // Slid up far enough → lock
+      setIsLocked(true);
+      return;
+    }
+    if (delta > 50 && held > 400) {
+      // Slid up moderately and held → cancel
+      cancelRecording();
+      return;
+    }
+    if (held < 300) {
+      // Tap too short → cancel (no accidental sends)
+      cancelRecording();
+      return;
+    }
+    // Normal release → send
+    stopRecording();
   };
 
   const handleCancelReply = () => dispatch(setReplyingTo(null));
@@ -604,13 +651,13 @@ const MessageInput = () => {
             <button
               ref={micButtonRef}
               type="button"
-              onMouseDown={handlePointerDown}
-              onMouseMove={handlePointerMove}
-              onMouseUp={handlePointerUp}
-              onMouseLeave={isRecording && !isLocked ? handlePointerUp : undefined}
-              onTouchStart={(e) => { e.preventDefault(); handlePointerDown(e.touches[0]); }}
-              onTouchMove={(e) => { e.preventDefault(); handlePointerMove(e.touches[0]); }}
-              onTouchEnd={(e) => { e.preventDefault(); handlePointerUp(e.changedTouches[0]); }}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
               disabled={uploading}
               className={`relative p-2 sm:p-2.5 transition-all rounded-xl disabled:opacity-40 disabled:cursor-not-allowed select-none ${
                 isRecording
