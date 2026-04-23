@@ -14,16 +14,18 @@ const chatSlice = createSlice({
   initialState,
   reducers: {
     setChats: (state, action) => {
-      state.chats = action.payload;
+      state.chats = Array.isArray(action.payload) ? action.payload : [];
     },
     setCurrentChat: (state, action) => {
       state.currentChat = action.payload;
     },
     setMessages: (state, action) => {
-      state.messages = action.payload;
+      state.messages = Array.isArray(action.payload) ? action.payload : [];
     },
     addMessage: (state, action) => {
-      state.messages.push(action.payload);
+      if (Array.isArray(state.messages)) {
+        state.messages.push(action.payload);
+      }
     },
     setReplyingTo: (state, action) => {
       state.replyingTo = action.payload;

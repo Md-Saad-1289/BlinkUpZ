@@ -35,24 +35,23 @@ const useGetChats = () => {
 
     const handleNewMessage = (message) => {
       // Update the chat's last message and timestamp
-      dispatch(setChats((prevChats) => {
-        return prevChats.map((chat) => {
-          const isParticipant = chat.participants.some(
-            (p) => p._id === message.sender || p._id === message.receiver
-          );
-          if (isParticipant) {
-            return {
-              ...chat,
-              lastMessage: {
-                content: message.content,
-                createdAt: message.createdAt,
-              },
-              updatedAt: message.createdAt,
-            };
-          }
-          return chat;
-        });
-      }));
+      const updatedChats = chats.map((chat) => {
+        const isParticipant = chat.participants.some(
+          (p) => p._id === message.sender || p._id === message.receiver
+        );
+        if (isParticipant) {
+          return {
+            ...chat,
+            lastMessage: {
+              content: message.content,
+              createdAt: message.createdAt,
+            },
+            updatedAt: message.createdAt,
+          };
+        }
+        return chat;
+      });
+      dispatch(setChats(updatedChats));
     };
 
     socket.on("receive_message", handleNewMessage);
@@ -60,7 +59,7 @@ const useGetChats = () => {
     return () => {
       socket.off("receive_message", handleNewMessage);
     };
-  }, [socket, userData, dispatch]);
+  }, [socket, userData, dispatch, chats]);
 
   return chats;
 };
