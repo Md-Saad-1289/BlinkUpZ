@@ -14,6 +14,10 @@ const MessageInput = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [recordingError, setRecordingError] = useState(null);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [showRecordingUI, setShowRecordingUI] = useState(false);
+  const [recordingBlob, setRecordingBlob] = useState(null);
+  const [isRecordingPaused, setIsRecordingPaused] = useState(false);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const emojiPickerRef = useRef(null);
@@ -21,6 +25,10 @@ const MessageInput = () => {
   const recordingTimeoutRef = useRef(null);
   const recordingAutoStopRef = useRef(null);
   const isRecordingRef = useRef(false);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const microphoneRef = useRef(null);
+  const animationFrameRef = useRef(null);
   const dispatch = useDispatch();
   const socket = useSocket();
   const { currentChat, replyingTo } = useSelector((state) => state.chat);
@@ -45,6 +53,7 @@ const MessageInput = () => {
       if (recordingAutoStopRef.current) {
         clearTimeout(recordingAutoStopRef.current);
       }
+      cleanupAudioMonitoring();
     };
   }, [currentChat, socket, userData, isTyping]);
 
@@ -113,51 +122,120 @@ const MessageInput = () => {
   // Voice recording functions
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      setRecordingError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100
+        }
+      });
+
+      // Setup audio context for level monitoring
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(stream);
+
+      analyser.fftSize = 256;
+      microphone.connect(analyser);
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+      microphoneRef.current = microphone;
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm'
+      });
       mediaRecorderRef.current = mediaRecorder;
-      
+
       const chunks = [];
       mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-      
+
       mediaRecorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        await sendVoiceMessage(blob);
+        const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
+        setRecordingBlob(blob);
+        setShowRecordingUI(true);
         stream.getTracks().forEach(track => track.stop());
+        cleanupAudioMonitoring();
       };
-      
-      mediaRecorder.start();
+
+      mediaRecorder.start(100); // Collect data every 100ms
       setIsRecording(true);
+      setIsRecordingPaused(false);
       isRecordingRef.current = true;
       setRecordingTime(0);
-      
+      setAudioLevel(0);
+
+      // Start audio level monitoring
+      const monitorAudioLevel = () => {
+        if (!analyserRef.current) return;
+
+        const bufferLength = analyserRef.current.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        analyserRef.current.getByteFrequencyData(dataArray);
+
+        // Calculate average volume level
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        setAudioLevel(Math.min(average / 128, 1)); // Normalize to 0-1
+
+        if (isRecordingRef.current) {
+          animationFrameRef.current = requestAnimationFrame(monitorAudioLevel);
+        }
+      };
+      monitorAudioLevel();
+
       // Start timer
       recordingTimeoutRef.current = setInterval(() => {
         setRecordingTime(prev => {
-          if (prev >= 59) { // Max 60 seconds
+          if (prev >= 299) { // Max 5 minutes
             stopRecording();
-            return 60;
+            return 300;
           }
           return prev + 1;
         });
       }, 1000);
-      
-      // Auto-stop after 60 seconds
+
+      // Auto-stop after 5 minutes
       recordingAutoStopRef.current = setTimeout(() => {
         if (isRecordingRef.current) stopRecording();
-      }, 60000);
-      
+      }, 300000);
+
     } catch (error) {
       console.error('Error starting recording:', error);
-      setRecordingError('Microphone access denied. Please check permissions.');
-      setTimeout(() => setRecordingError(null), 5000);
+      let errorMessage = 'Unable to access microphone. ';
+      if (error.name === 'NotAllowedError') {
+        errorMessage += 'Please allow microphone access and try again.';
+      } else if (error.name === 'NotFoundError') {
+        errorMessage += 'No microphone found.';
+      } else {
+        errorMessage += 'Please check your microphone settings.';
+      }
+      setRecordingError(errorMessage);
+      setTimeout(() => setRecordingError(null), 8000);
     }
+  };
+
+  const cleanupAudioMonitoring = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+    }
+    audioContextRef.current = null;
+    analyserRef.current = null;
+    microphoneRef.current = null;
   };
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecordingRef.current) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      setIsRecordingPaused(false);
       isRecordingRef.current = false;
       if (recordingTimeoutRef.current) {
         clearInterval(recordingTimeoutRef.current);
@@ -165,15 +243,62 @@ const MessageInput = () => {
       if (recordingAutoStopRef.current) {
         clearTimeout(recordingAutoStopRef.current);
       }
+      cleanupAudioMonitoring();
     }
   };
 
+  const pauseRecording = () => {
+    if (mediaRecorderRef.current && isRecordingRef.current) {
+      if (mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.pause();
+        setIsRecordingPaused(true);
+        if (recordingTimeoutRef.current) {
+          clearInterval(recordingTimeoutRef.current);
+        }
+      } else if (mediaRecorderRef.current.state === 'paused') {
+        mediaRecorderRef.current.resume();
+        setIsRecordingPaused(false);
+        // Resume timer
+        recordingTimeoutRef.current = setInterval(() => {
+          setRecordingTime(prev => {
+            if (prev >= 299) {
+              stopRecording();
+              return 300;
+            }
+            return prev + 1;
+          });
+        }, 1000);
+      }
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    setIsRecordingPaused(false);
+    setRecordingTime(0);
+    setAudioLevel(0);
+    setRecordingBlob(null);
+    setShowRecordingUI(false);
+    isRecordingRef.current = false;
+    if (recordingTimeoutRef.current) {
+      clearInterval(recordingTimeoutRef.current);
+    }
+    if (recordingAutoStopRef.current) {
+      clearTimeout(recordingAutoStopRef.current);
+    }
+    cleanupAudioMonitoring();
+  };
+
   const sendVoiceMessage = async (audioBlob) => {
-    if (!currentChat) return;
+    if (!currentChat || !audioBlob) return;
 
     setUploading(true);
+    setShowRecordingUI(false);
     const formData = new FormData();
-    formData.append("audio", audioBlob, "voice-message.webm");
+    formData.append("audio", audioBlob, `voice-message-${Date.now()}.webm`);
     formData.append("messageType", "audio");
     if (replyingTo) {
       formData.append("replyTo", replyingTo._id);
@@ -192,13 +317,18 @@ const MessageInput = () => {
         message: res.data,
         senderId: userData._id,
       });
+
+      // Reset recording state
+      setRecordingBlob(null);
+      setRecordingTime(0);
+      setAudioLevel(0);
     } catch (error) {
       console.error("Send voice message failed:", error);
       setRecordingError('Failed to send voice message. Please try again.');
       setTimeout(() => setRecordingError(null), 5000);
+      setShowRecordingUI(true); // Show UI again to retry
     } finally {
       setUploading(false);
-      setRecordingTime(0);
     }
   };
 
@@ -274,6 +404,55 @@ const MessageInput = () => {
       )}
       
       <form onSubmit={handleSubmit} className="p-2 sm:p-4 border-t border-slate-700/30 bg-slate-900/80 backdrop-blur-xl">
+        {/* Recording Preview UI */}
+        {showRecordingUI && recordingBlob && (
+          <div className="mb-4 p-4 bg-gradient-to-r from-slate-800/80 to-slate-700/80 backdrop-blur-lg rounded-2xl border border-slate-600/50 shadow-xl">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-cyan-500/20 border border-cyan-400/40">
+                  <FaMicrophone className="w-5 h-5 text-cyan-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-white">Voice Message Recorded</h3>
+                  <p className="text-xs text-slate-400">
+                    {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')} • {(recordingBlob.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRecordingUI(false)}
+                  className="px-3 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-600/50 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => sendVoiceMessage(recordingBlob)}
+                  disabled={uploading}
+                  className="px-4 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-medium rounded-lg hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg shadow-cyan-500/20"
+                >
+                  {uploading ? 'Sending...' : 'Send Voice'}
+                </button>
+              </div>
+            </div>
+            {/* Simple waveform preview */}
+            <div className="flex items-end justify-center gap-0.5 h-8 bg-slate-800/50 rounded-lg p-2">
+              {Array.from({ length: 20 }, (_, i) => (
+                <div
+                  key={i}
+                  className="flex-1 bg-gradient-to-t from-cyan-400 to-cyan-300 rounded-sm transition-all"
+                  style={{
+                    height: `${Math.random() * 60 + 20}%`,
+                    opacity: i < (recordingTime / 3) % 20 ? 1 : 0.4
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-2 sm:gap-3 items-center">
           <div className="relative">
             <button
@@ -283,13 +462,13 @@ const MessageInput = () => {
             >
               <FaFaceSmile className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
-            
+
             {showEmojiPicker && (
-              <div 
+              <div
                 ref={emojiPickerRef}
                 className="absolute bottom-full left-0 mb-2 z-40"
               >
-                <EmojiPicker 
+                <EmojiPicker
                   onEmojiClick={handleEmojiClick}
                   theme="dark"
                   searchDisabled={false}
@@ -303,7 +482,7 @@ const MessageInput = () => {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
+            disabled={uploading || isRecording}
             className="p-2 sm:p-3 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition rounded-lg sm:rounded-xl hover:shadow-lg hover:shadow-cyan-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <FaImage className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -315,52 +494,96 @@ const MessageInput = () => {
             accept="image/*"
             className="hidden"
           />
-          {/* Voice Recording Button */}
-          <button
-            type="button"
-            onClick={isRecording ? stopRecording : startRecording}
-            disabled={uploading}
-            className={`p-2 sm:p-3 transition rounded-lg sm:rounded-xl hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed ${
-              isRecording 
-                ? 'text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 animate-pulse shadow-lg shadow-red-500/30' 
-                : 'text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 hover:shadow-cyan-500/10'
-            }`}
-            title={isRecording ? 'Stop Recording' : 'Start Recording'}
-          >
-            {isRecording ? <FaStop className="w-4 h-4 sm:w-5 sm:h-5" /> : <FaMicrophone className="w-4 h-4 sm:w-5 sm:h-5" />}
-          </button>
 
-          {/* Recording Timer & Status */}
+          {/* Enhanced Voice Recording Button */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={uploading}
+              className={`relative p-2 sm:p-3 transition-all rounded-lg sm:rounded-xl disabled:opacity-40 disabled:cursor-not-allowed ${
+                isRecording
+                  ? 'text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/30'
+                  : 'text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 hover:shadow-lg hover:shadow-cyan-500/10'
+              } ${isRecording ? 'animate-pulse' : ''}`}
+              title={isRecording ? 'Stop Recording' : 'Start Voice Recording'}
+            >
+              {isRecording ? <FaStop className="w-4 h-4 sm:w-5 sm:h-5" /> : <FaMicrophone className="w-4 h-4 sm:w-5 sm:h-5" />}
+            </button>
+
+            {/* Recording Animation Overlay */}
+            {isRecording && (
+              <div className="absolute inset-0 rounded-lg sm:rounded-xl bg-red-500/20 animate-ping"></div>
+            )}
+          </div>
+
+          {/* Enhanced Recording Status */}
           {isRecording && (
-            <div className="flex items-center gap-2 px-2 py-1 bg-red-500/20 border border-red-500/40 rounded-lg">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-                <span className="text-xs sm:text-sm font-mono text-red-400 font-semibold">
+            <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-red-500/20 to-red-600/20 backdrop-blur-lg border border-red-500/40 rounded-xl shadow-lg">
+              <div className="flex items-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${isRecordingPaused ? 'bg-yellow-400' : 'bg-red-400 animate-pulse'}`}></div>
+                <span className="text-sm font-mono text-red-300 font-semibold">
                   {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
                 </span>
               </div>
-              {recordingTime >= 55 && (
-                <span className="text-xs text-red-300 font-medium">Recording limit soon</span>
+
+              {/* Audio Level Indicator */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: 8 }, (_, i) => (
+                  <div
+                    key={i}
+                    className={`w-1 rounded-full transition-all duration-100 ${
+                      audioLevel > (i + 1) / 8 ? 'bg-red-400 h-4' : 'bg-red-400/30 h-2'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* Pause/Resume Button */}
+              <button
+                type="button"
+                onClick={pauseRecording}
+                className="p-1 text-red-300 hover:text-red-100 hover:bg-red-500/20 rounded transition"
+                title={isRecordingPaused ? 'Resume Recording' : 'Pause Recording'}
+              >
+                {isRecordingPaused ? <FaMicrophone className="w-3 h-3" /> : <FaStop className="w-3 h-3" />}
+              </button>
+
+              {/* Cancel Button */}
+              <button
+                type="button"
+                onClick={cancelRecording}
+                className="p-1 text-red-300 hover:text-red-100 hover:bg-red-500/20 rounded transition"
+                title="Cancel Recording"
+              >
+                <FaXmark className="w-3 h-3" />
+              </button>
+
+              {recordingTime >= 270 && (
+                <span className="text-xs text-red-200 font-medium animate-pulse">Recording limit soon</span>
               )}
             </div>
           )}
 
           {/* Error Message */}
           {recordingError && (
-            <div className="flex items-center gap-2 px-2 py-1 bg-red-500/20 border border-red-500/40 rounded-lg text-xs text-red-300 animate-in fade-in">
+            <div className="flex items-center gap-2 px-3 py-2 bg-red-500/20 border border-red-500/40 rounded-xl text-sm text-red-300 animate-in fade-in shadow-lg">
+              <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
               {recordingError}
             </div>
           )}
+
           <textarea
             value={content}
             onChange={handleInputChange}
             placeholder="Type a message..."
             rows={2}
-            className="flex-1 resize-none px-3 sm:px-5 py-2 sm:py-3 rounded-xl sm:rounded-2xl bg-slate-800/60 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:bg-slate-800/80 transition-all border border-slate-700/50 text-sm"
+            disabled={isRecording}
+            className="flex-1 resize-none px-3 sm:px-5 py-2 sm:py-3 rounded-xl sm:rounded-2xl bg-slate-800/60 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:bg-slate-800/80 transition-all border border-slate-700/50 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             type="submit"
-            disabled={!content.trim()}
+            disabled={!content.trim() || isRecording}
             className="flex items-center justify-center p-2.5 sm:p-4 bg-gradient-to-r from-cyan-500 to-cyan-600 text-white rounded-xl sm:rounded-2xl hover:from-cyan-400 hover:to-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:from-cyan-500 disabled:hover:to-cyan-600 transition-all shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40"
           >
             <FaPaperPlane className="w-4 h-4 sm:w-5 sm:h-5" />
