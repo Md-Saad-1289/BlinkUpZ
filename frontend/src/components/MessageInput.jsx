@@ -3,12 +3,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { useSocket } from "../context/SocketContext";
 import api from '../api.js'
 import { addMessage, setReplyingTo } from "../redux/chatSlice";
-import { FaPaperPlane, FaFaceSmile, FaImage, FaXmark, FaReply } from "react-icons/fa6";
-import EmojiPicker from "emoji-picker-react";
+import { FaPaperPlane, FaImage, FaXmark, FaReply } from "react-icons/fa6";
 
 const MessageInput = () => {
   const [content, setContent] = useState("");
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const fileInputRef = useRef(null);
@@ -111,18 +109,6 @@ const MessageInput = () => {
 
   return (
     <div className="relative">
-      {showEmojiPicker && (
-        <div className="absolute bottom-16 left-0 z-50">
-          <EmojiPicker
-            onEmojiClick={handleEmojiClick}
-            theme="dark"
-            width={300}
-            height={400}
-            previewEmoji="😀"
-          />
-        </div>
-      )}
-      
       {/* Reply Preview */}
       {replyingTo && (
         <div className="px-2 sm:px-4 py-2 bg-slate-800/50 border-t border-slate-700/30 flex items-center justify-between gap-2">
@@ -157,13 +143,6 @@ const MessageInput = () => {
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
             className="p-2 sm:p-3 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition rounded-lg sm:rounded-xl hover:shadow-lg hover:shadow-cyan-500/10 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {uploading ? (
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 animate-spin text-cyan-400" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            ) : (
               <FaImage className="w-4 h-4 sm:w-5 sm:h-5" />
             )}
           </button>
