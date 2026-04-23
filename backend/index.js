@@ -93,18 +93,8 @@ io.on('connection', (socket) => {
 
   socket.on('send_message', (data) => {
     const { chatId, message, senderId } = data;
-    // Broadcast to everyone in the chat
-    io.to(chatId).emit('receive_message', message);
-    
-    // Send notification to online recipient
-    const recipientId = message.recipientId;
-    if (recipientId && userSocketMap.has(recipientId)) {
-      const recipientSocket = userSocketMap.get(recipientId);
-      io.to(recipientSocket).emit('new_message_notification', {
-        chatId,
-        message
-      });
-    }
+    // Broadcast to everyone EXCEPT the sender (who already has it locally)
+    socket.to(chatId).emit('receive_message', message);
   });
 
   // Mark message as seen
