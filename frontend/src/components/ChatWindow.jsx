@@ -302,7 +302,7 @@ const ChatWindow = () => {
                   key={message._id}
                   className={`flex mb-3 ${isOwn ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300 group`}
                 >
-                  className={`flex flex-col ${isOwn ? "items-end" : "items-start"} gap-1.5 max-w-[90%] sm:max-w-[70%]`}
+                  <div className={`flex flex-col ${isOwn ? "items-end" : "items-start"} gap-1.5 max-w-[90%] sm:max-w-[70%]`}>
                     {/* Avatar for received messages */}
                     {!isOwn && showAvatar && (
                       <div className="flex items-center gap-2 mb-1">
