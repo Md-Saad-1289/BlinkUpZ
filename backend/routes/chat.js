@@ -8,7 +8,15 @@ const chatRouter = express.Router();
 chatRouter.get("/", isAuth, getChats);
 chatRouter.post("/", isAuth, createChat);
 chatRouter.get("/:chatId/messages", isAuth, getMessages);
-chatRouter.post("/:chatId/messages", isAuth, upload.single("image"), sendMessage);
+chatRouter.post(
+  "/:chatId/messages",
+  isAuth,
+  upload.fields([
+    { name: "image", maxCount: 1 },
+    { name: "audio", maxCount: 1 }
+  ]),
+  sendMessage
+);
 chatRouter.put("/:chatId/messages/seen", isAuth, markMessagesSeen);
 chatRouter.delete("/messages/:messageId", isAuth, deleteMessage);
 chatRouter.put("/messages/:messageId", isAuth, editMessage);

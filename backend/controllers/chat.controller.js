@@ -92,8 +92,13 @@ export const sendMessage = async (req, res) => {
     const { content, messageType = "text", replyTo } = req.body;
     const userId = req.userId;
 
-    if (!chatId || (!content && !req.file)) {
-      return res.status(400).json({ message: "Chat ID and content or image required" });
+    const audioFile = req.files?.audio?.[0];
+    const imageFile = req.files?.image?.[0];
+    const uploadedFile = audioFile || imageFile;
+    const detectedMessageType = messageType || (audioFile ? "audio" : imageFile ? "image" : "text");
+
+    if (!chatId || (!content && !uploadedFile)) {
+      return res.status(400).json({ message: "Chat ID and content or media required" });
     }
 
     // Verify user is participant
@@ -111,14 +116,14 @@ export const sendMessage = async (req, res) => {
     }
 
     let messageContent = content || "";
-    let messageTypeFinal = messageType;
+    let messageTypeFinal = detectedMessageType;
 
     // Handle file uploads (images and audio)
-    if (req.file) {
-      // Upload to Cloudinary
-      const cloudinaryUrl = await uploadOnCloudinary(req.file.path);
+    if (uploadedFile) {
+      const uploadFolder = messageTypeFinal === "audio" ? "chat_audio" : "chat_images";
+      const cloudinaryUrl = await uploadOnCloudinary(uploadedFile.path, uploadFolder);
       messageContent = cloudinaryUrl;
-      messageTypeFinal = messageType === "audio" ? "audio" : "image";
+      messageTypeFinal = audioFile ? "audio" : "image";
     }
 
     const message = await Message.create({

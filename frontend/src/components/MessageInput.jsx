@@ -18,6 +18,8 @@ const MessageInput = () => {
   const emojiPickerRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recordingTimeoutRef = useRef(null);
+  const recordingAutoStopRef = useRef(null);
+  const isRecordingRef = useRef(false);
   const dispatch = useDispatch();
   const socket = useSocket();
   const { currentChat, replyingTo } = useSelector((state) => state.chat);
@@ -35,6 +37,12 @@ const MessageInput = () => {
       }
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
+      }
+      if (recordingTimeoutRef.current) {
+        clearInterval(recordingTimeoutRef.current);
+      }
+      if (recordingAutoStopRef.current) {
+        clearTimeout(recordingAutoStopRef.current);
       }
     };
   }, [currentChat, socket, userData, isTyping]);
@@ -120,6 +128,7 @@ const MessageInput = () => {
       
       mediaRecorder.start();
       setIsRecording(true);
+      isRecordingRef.current = true;
       setRecordingTime(0);
       
       // Start timer
@@ -134,8 +143,8 @@ const MessageInput = () => {
       }, 1000);
       
       // Auto-stop after 60 seconds
-      setTimeout(() => {
-        if (isRecording) stopRecording();
+      recordingAutoStopRef.current = setTimeout(() => {
+        if (isRecordingRef.current) stopRecording();
       }, 60000);
       
     } catch (error) {
@@ -145,11 +154,15 @@ const MessageInput = () => {
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+    if (mediaRecorderRef.current && isRecordingRef.current) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      isRecordingRef.current = false;
       if (recordingTimeoutRef.current) {
         clearInterval(recordingTimeoutRef.current);
+      }
+      if (recordingAutoStopRef.current) {
+        clearTimeout(recordingAutoStopRef.current);
       }
     }
   };

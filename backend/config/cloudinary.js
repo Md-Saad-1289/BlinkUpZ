@@ -17,10 +17,11 @@ cloudinary.config({
   api_secret: apiSecret,
 });
 
-const uploadOnCloudinary = async (filePath) => {
+const uploadOnCloudinary = async (filePath, folder = "chat_media") => {
   try {
     const result = await cloudinary.uploader.upload(filePath, {
-      folder: "chat_images",
+      folder,
+      resource_type: "auto",
     });
     fs.unlinkSync(filePath); // remove temp file
     return result.secure_url;
