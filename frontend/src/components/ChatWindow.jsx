@@ -434,7 +434,7 @@ const ChatWindow = () => {
                             />
                           </div>
                         ) : message.messageType === "audio" ? (
-                          <AudioPlayer src={message.content} />
+                          <AudioPlayer src={message.content} isOwn={isOwn} />
                         ) : (
                           <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                             {message.content}

@@ -13,6 +13,7 @@ const MessageInput = () => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [recordingError, setRecordingError] = useState(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const emojiPickerRef = useRef(null);
@@ -148,7 +149,8 @@ const MessageInput = () => {
       
     } catch (error) {
       console.error('Error starting recording:', error);
-      alert('Could not access microphone. Please check permissions.');
+      setRecordingError('Microphone access denied. Please check permissions.');
+      setTimeout(() => setRecordingError(null), 5000);
     }
   };
 
@@ -192,6 +194,8 @@ const MessageInput = () => {
       });
     } catch (error) {
       console.error("Send voice message failed:", error);
+      setRecordingError('Failed to send voice message. Please try again.');
+      setTimeout(() => setRecordingError(null), 5000);
     } finally {
       setUploading(false);
       setRecordingTime(0);
@@ -318,18 +322,33 @@ const MessageInput = () => {
             disabled={uploading}
             className={`p-2 sm:p-3 transition rounded-lg sm:rounded-xl hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed ${
               isRecording 
-                ? 'text-red-400 bg-red-500/20 hover:bg-red-500/30 animate-pulse' 
+                ? 'text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 animate-pulse shadow-lg shadow-red-500/30' 
                 : 'text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 hover:shadow-cyan-500/10'
             }`}
+            title={isRecording ? 'Stop Recording' : 'Start Recording'}
           >
             {isRecording ? <FaStop className="w-4 h-4 sm:w-5 sm:h-5" /> : <FaMicrophone className="w-4 h-4 sm:w-5 sm:h-5" />}
           </button>
 
-          {/* Recording Timer */}
+          {/* Recording Timer & Status */}
           {isRecording && (
-            <div className="flex items-center gap-2 text-red-400 font-mono text-sm">
-              <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
-              {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+            <div className="flex items-center gap-2 px-2 py-1 bg-red-500/20 border border-red-500/40 rounded-lg">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+                <span className="text-xs sm:text-sm font-mono text-red-400 font-semibold">
+                  {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                </span>
+              </div>
+              {recordingTime >= 55 && (
+                <span className="text-xs text-red-300 font-medium">Recording limit soon</span>
+              )}
+            </div>
+          )}
+
+          {/* Error Message */}
+          {recordingError && (
+            <div className="flex items-center gap-2 px-2 py-1 bg-red-500/20 border border-red-500/40 rounded-lg text-xs text-red-300 animate-in fade-in">
+              {recordingError}
             </div>
           )}
           <textarea
