@@ -35,12 +35,15 @@ const chatSlice = createSlice({
       }
     },
     updateMessageContent: (state, action) => {
-      const { messageId, content, edited } = action.payload;
+      const { messageId, content, edited, deleted } = action.payload;
       const message = state.messages.find(m => m._id === messageId);
       if (message) {
         message.content = content;
         if (edited !== undefined) {
           message.edited = edited;
+        }
+        if (deleted !== undefined) {
+          message.deleted = deleted;
         }
       }
     },

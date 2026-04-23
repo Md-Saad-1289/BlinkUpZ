@@ -69,7 +69,13 @@ export const getMessages = async (req, res) => {
 
     const messages = await Message.find({ chat: chatId })
       .populate("sender", "username name image")
-      .populate("replyTo", "content sender")
+      .populate({
+        path: "replyTo",
+        populate: {
+          path: "sender",
+          select: "username name"
+        }
+      })
       .sort({ createdAt: 1 });
 
     res.status(200).json(messages);
@@ -128,7 +134,13 @@ export const sendMessage = async (req, res) => {
 
     const populatedMessage = await Message.findById(message._id)
       .populate("sender", "username name image")
-      .populate("replyTo", "content sender");
+      .populate({
+        path: "replyTo",
+        populate: {
+          path: "sender",
+          select: "username name"
+        }
+      });
 
     res.status(201).json(populatedMessage);
   } catch (error) {
@@ -229,7 +241,13 @@ export const editMessage = async (req, res) => {
 
     const populatedMessage = await Message.findById(messageId)
       .populate("sender", "username name image")
-      .populate("replyTo", "content sender");
+      .populate({
+        path: "replyTo",
+        populate: {
+          path: "sender",
+          select: "username name"
+        }
+      });
 
     res.status(200).json({ message: "Message edited", editedMessage: populatedMessage });
   } catch (error) {

@@ -51,7 +51,7 @@ const ChatWindow = () => {
         withCredentials: true
       });
       // Update local state - mark as deleted
-      dispatch({ type: 'chat/updateMessageContent', payload: { messageId, content: 'This message was deleted' } });
+      dispatch({ type: 'chat/updateMessageContent', payload: { messageId, content: 'This message was deleted', deleted: true } });
       setShowMessageMenu(null);
     } catch (error) {
       console.error("Failed to delete message:", error);
@@ -229,7 +229,7 @@ const ChatWindow = () => {
                   key={message._id}
                   className={`flex mb-3 ${isOwn ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300 group`}
                 >
-                  <div className={`flex flex-col ${isOwn ? "items-end" : "items-start"} gap-1.5 max-w-[80%] sm:max-w-[70%]`}>
+                  className={`flex flex-col ${isOwn ? "items-end" : "items-start"} gap-1.5 max-w-[90%] sm:max-w-[70%]`}
                     {/* Avatar for received messages */}
                     {!isOwn && showAvatar && (
                       <div className="flex items-center gap-2 mb-1">
@@ -321,6 +321,14 @@ const ChatWindow = () => {
                           </button>
                         </div>
                       )}
+
+                      {/* Menu button for all messages */}
+                      <button
+                        onClick={() => setShowMessageMenu(message._id)}
+                        className={`absolute top-2 ${isOwn ? 'left-2' : 'right-2'} p-1.5 rounded-full bg-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-600/80 transition-all duration-200 opacity-0 group-hover:opacity-100`}
+                      >
+                        <FaEllipsisVertical className="w-3 h-3" />
+                      </button>
                       
                       {/* Subtle shine effect for own messages */}
                       {isOwn && !message.deleted && (
@@ -333,21 +341,35 @@ const ChatWindow = () => {
                       <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} top-full mt-1 bg-slate-800/95 backdrop-blur-md rounded-xl shadow-xl border border-slate-700/50 py-2 z-50 min-w-[120px]`}>
                         <button
                           onClick={() => {
-                            setEditingMessage(message);
+                            dispatch(setReplyingTo(message));
                             setShowMessageMenu(null);
                           }}
-                          className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700/50 hover:text-yellow-400 flex items-center gap-2"
+                          className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700/50 hover:text-cyan-400 flex items-center gap-2"
                         >
-                          <FaPencil className="w-3.5 h-3.5" />
-                          Edit
+                          <FaReply className="w-3.5 h-3.5" />
+                          Reply
                         </button>
-                        <button
-                          onClick={() => handleDeleteMessage(message._id)}
-                          className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700/50 hover:text-red-400 flex items-center gap-2"
-                        >
-                          <FaTrash className="w-3.5 h-3.5" />
-                          Delete
-                        </button>
+                        {isOwn && !message.deleted && message.messageType !== "image" && (
+                          <button
+                            onClick={() => {
+                              setEditingMessage(message);
+                              setShowMessageMenu(null);
+                            }}
+                            className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700/50 hover:text-yellow-400 flex items-center gap-2"
+                          >
+                            <FaPencil className="w-3.5 h-3.5" />
+                            Edit
+                          </button>
+                        )}
+                        {isOwn && !message.deleted && (
+                          <button
+                            onClick={() => handleDeleteMessage(message._id)}
+                            className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700/50 hover:text-red-400 flex items-center gap-2"
+                          >
+                            <FaTrash className="w-3.5 h-3.5" />
+                            Delete
+                          </button>
+                        )}
                       </div>
                     )}
                     
