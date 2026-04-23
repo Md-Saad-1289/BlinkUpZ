@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { useSocket } from "../context/SocketContext";
 import api from '../api.js'
 import { addMessage, setReplyingTo } from "../redux/chatSlice";
-import { FaPaperPlane, FaImage, FaXmark, FaReply, FaFaceSmile } from "react-icons/fa6";
+import { FaPaperPlane, FaImage, FaXmark, FaReply, FaFaceSmile, FaMicrophone, FaStop } from "react-icons/fa6";
 import EmojiPicker from 'emoji-picker-react';
 
 const MessageInput = () => {
@@ -11,9 +11,13 @@ const MessageInput = () => {
   const [uploading, setUploading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const emojiPickerRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const recordingTimeoutRef = useRef(null);
   const dispatch = useDispatch();
   const socket = useSocket();
   const { currentChat, replyingTo } = useSelector((state) => state.chat);
@@ -95,6 +99,91 @@ const MessageInput = () => {
     } finally {
       setUploading(false);
       fileInputRef.current.value = "";
+    }
+  };
+
+  // Voice recording functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      
+      const chunks = [];
+      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
+      
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        await sendVoiceMessage(blob);
+        stream.getTracks().forEach(track => track.stop());
+      };
+      
+      mediaRecorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      
+      // Start timer
+      recordingTimeoutRef.current = setInterval(() => {
+        setRecordingTime(prev => {
+          if (prev >= 59) { // Max 60 seconds
+            stopRecording();
+            return 60;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+      
+      // Auto-stop after 60 seconds
+      setTimeout(() => {
+        if (isRecording) stopRecording();
+      }, 60000);
+      
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      alert('Could not access microphone. Please check permissions.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      if (recordingTimeoutRef.current) {
+        clearInterval(recordingTimeoutRef.current);
+      }
+    }
+  };
+
+  const sendVoiceMessage = async (audioBlob) => {
+    if (!currentChat) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("audio", audioBlob, "voice-message.webm");
+    formData.append("messageType", "audio");
+    if (replyingTo) {
+      formData.append("replyTo", replyingTo._id);
+    }
+
+    try {
+      const res = await api.post(
+        `/api/chat/${currentChat._id}/messages`,
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      dispatch(addMessage(res.data));
+      dispatch(setReplyingTo(null));
+      socket?.emit("send_message", {
+        chatId: currentChat._id,
+        message: res.data,
+        senderId: userData._id,
+      });
+    } catch (error) {
+      console.error("Send voice message failed:", error);
+    } finally {
+      setUploading(false);
+      setRecordingTime(0);
     }
   };
 
@@ -207,6 +296,27 @@ const MessageInput = () => {
             accept="image/*"
             className="hidden"
           />
+          {/* Voice Recording Button */}
+          <button
+            type="button"
+            onClick={isRecording ? stopRecording : startRecording}
+            disabled={uploading}
+            className={`p-2 sm:p-3 transition rounded-lg sm:rounded-xl hover:shadow-lg disabled:opacity-40 disabled:cursor-not-allowed ${
+              isRecording 
+                ? 'text-red-400 bg-red-500/20 hover:bg-red-500/30 animate-pulse' 
+                : 'text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 hover:shadow-cyan-500/10'
+            }`}
+          >
+            {isRecording ? <FaStop className="w-4 h-4 sm:w-5 sm:h-5" /> : <FaMicrophone className="w-4 h-4 sm:w-5 sm:h-5" />}
+          </button>
+
+          {/* Recording Timer */}
+          {isRecording && (
+            <div className="flex items-center gap-2 text-red-400 font-mono text-sm">
+              <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></div>
+              {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+            </div>
+          )}
           <textarea
             value={content}
             onChange={handleInputChange}

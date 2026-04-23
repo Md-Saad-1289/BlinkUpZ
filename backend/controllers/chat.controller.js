@@ -113,12 +113,12 @@ export const sendMessage = async (req, res) => {
     let messageContent = content || "";
     let messageTypeFinal = messageType;
 
-    // Handle image upload
+    // Handle file uploads (images and audio)
     if (req.file) {
       // Upload to Cloudinary
       const cloudinaryUrl = await uploadOnCloudinary(req.file.path);
       messageContent = cloudinaryUrl;
-      messageTypeFinal = "image";
+      messageTypeFinal = messageType === "audio" ? "audio" : "image";
     }
 
     const message = await Message.create({

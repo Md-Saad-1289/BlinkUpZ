@@ -5,6 +5,7 @@ import { addMessage, setReplyingTo, markMessageSeen } from "../redux/chatSlice";
 import useGetMessages from "../Hooks/useGetMessages";
 import MessageInput from "./MessageInput";
 import ImageViewer from "./ImageViewer";
+import AudioPlayer from "./AudioPlayer";
 import { FaPhone, FaVideo, FaEllipsisVertical, FaCheck, FaCheckDouble, FaReply, FaTrash, FaPencil } from "react-icons/fa6";
 import axios from "axios";
 import { serverUrl } from "../config";
@@ -123,7 +124,11 @@ const ChatWindow = () => {
           if (!isWindowFocused && message.sender._id !== userData._id && 'Notification' in window) {
             if (Notification.permission === 'granted') {
               const notification = new Notification(`New message from ${message.sender.name || message.sender.username}`, {
-                body: message.content.length > 50 ? message.content.substring(0, 50) + '...' : message.content,
+                body: message.messageType === 'audio' 
+                  ? 'Sent a voice message' 
+                  : message.messageType === 'image'
+                  ? 'Sent an image'
+                  : message.content.length > 50 ? message.content.substring(0, 50) + '...' : message.content,
                 icon: message.sender.image || '/logo.png',
                 tag: `chat-${currentChat._id}`,
                 requireInteraction: false
@@ -375,7 +380,7 @@ const ChatWindow = () => {
                                 <FaReply className="w-4 h-4" />
                                 Reply
                               </button>
-                              {isOwn && !message.deleted && message.messageType !== "image" && (
+                              {isOwn && !message.deleted && message.messageType !== "image" && message.messageType !== "audio" && (
                                 <button
                                   onClick={() => {
                                     setEditingMessage(message);
@@ -428,6 +433,8 @@ const ChatWindow = () => {
                               onError={(e) => e.target.style.display = "none"}
                             />
                           </div>
+                        ) : message.messageType === "audio" ? (
+                          <AudioPlayer src={message.content} />
                         ) : (
                           <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                             {message.content}
@@ -461,7 +468,7 @@ const ChatWindow = () => {
                                 <FaReply className="w-4 h-4" />
                                 Reply
                               </button>
-                              {isOwn && !message.deleted && message.messageType !== "image" && (
+                              {isOwn && !message.deleted && message.messageType !== "image" && message.messageType !== "audio" && (
                                 <button
                                   onClick={() => {
                                     setEditingMessage(message);
