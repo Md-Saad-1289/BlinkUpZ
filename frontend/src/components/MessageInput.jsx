@@ -4,13 +4,16 @@ import { useSocket } from "../context/SocketContext";
 import api from '../api.js'
 import { addMessage, setReplyingTo } from "../redux/chatSlice";
 import { FaPaperPlane, FaImage, FaXmark, FaReply, FaFaceSmile } from "react-icons/fa6";
+import EmojiPicker from 'emoji-picker-react';
 
 const MessageInput = () => {
   const [content, setContent] = useState("");
   const [uploading, setUploading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const emojiPickerRef = useRef(null);
   const dispatch = useDispatch();
   const socket = useSocket();
   const { currentChat, replyingTo } = useSelector((state) => state.chat);
@@ -107,6 +110,11 @@ const MessageInput = () => {
     dispatch(setReplyingTo(null));
   };
 
+  const handleEmojiClick = (emojiObject) => {
+    setContent(content + emojiObject.emoji);
+    setShowEmojiPicker(false);
+  };
+
   return (
     <div className="relative">
       {/* Reply Preview */}
@@ -131,6 +139,31 @@ const MessageInput = () => {
       
       <form onSubmit={handleSubmit} className="p-2 sm:p-4 border-t border-slate-700/30 bg-slate-900/80 backdrop-blur-xl">
         <div className="flex gap-2 sm:gap-3 items-center">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              className="p-2 sm:p-3 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition rounded-lg sm:rounded-xl hover:shadow-lg hover:shadow-cyan-500/10"
+            >
+              <FaFaceSmile className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+            
+            {showEmojiPicker && (
+              <div 
+                ref={emojiPickerRef}
+                className="absolute bottom-full left-0 mb-2 z-40"
+              >
+                <EmojiPicker 
+                  onEmojiClick={handleEmojiClick}
+                  theme="dark"
+                  searchDisabled={false}
+                  width={300}
+                  height={400}
+                />
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -163,6 +196,7 @@ const MessageInput = () => {
         </div>
       </form>
     </div>
+
   );
 };
 
