@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { useSocket } from "../context/SocketContext";
 import api from '../api.js'
 import { addMessage, setReplyingTo } from "../redux/chatSlice";
-import { FaPaperPlane, FaImage, FaXmark, FaReply } from "react-icons/fa6";
+import { FaPaperPlane, FaImage, FaXmark, FaReply, FaFaceSmile } from "react-icons/fa6";
 
 const MessageInput = () => {
   const [content, setContent] = useState("");
