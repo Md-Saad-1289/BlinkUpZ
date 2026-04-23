@@ -319,11 +319,11 @@ const ChatWindow = () => {
                     
                     {/* Reply Preview */}
                     {message.replyTo && (
-                      <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-1 max-w-full ${isOwn ? "bg-cyan-600/20" : "bg-slate-700/50"}`}>
-                        <FaReply className={`w-3 h-3 flex-shrink-0 ${isOwn ? "text-cyan-300" : "text-cyan-400"}`} />
+                      <div className={`flex items-start gap-2 px-3 py-2 rounded-lg mb-2 max-w-full border-l-2 ${isOwn ? "bg-cyan-500/10 border-cyan-400 ml-4" : "bg-slate-600/50 border-slate-400 mr-4"}`}>
+                        <FaReply className={`w-3 h-3 mt-0.5 flex-shrink-0 ${isOwn ? "text-cyan-400" : "text-slate-400"}`} />
                         <div className="flex-1 min-w-0">
-                          <p className={`text-[10px] font-medium ${isOwn ? "text-cyan-200" : "text-cyan-400"}`}>
-                            {message.replyTo.sender?.username || 'User'}
+                          <p className={`text-xs font-medium ${isOwn ? "text-cyan-300" : "text-slate-300"}`}>
+                            Replying to {message.replyTo.sender?.username || 'User'}
                           </p>
                           <p className="text-xs text-slate-400 truncate">{message.replyTo.content}</p>
                         </div>
@@ -332,40 +332,36 @@ const ChatWindow = () => {
                     
                     {/* Message Bubble */}
                     <div
-                      className={`relative px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl shadow-md border transition-all duration-200 ${
+                      className={`relative group px-4 py-3 rounded-2xl shadow-sm transition-all duration-200 ${
                         isOwn
-                          ? "bg-gradient-to-br from-cyan-500 via-cyan-500 to-cyan-600 text-white rounded-br-sm border-cyan-400/20 shadow-cyan-500/15 hover:shadow-cyan-500/25"
-                          : "bg-gradient-to-br from-slate-700/90 to-slate-750/90 text-slate-100 rounded-bl-sm border-slate-600/30 shadow-slate-900/30 hover:shadow-lg"
+                          ? "bg-cyan-500 text-white rounded-br-md ml-12"
+                          : "bg-slate-700 text-slate-100 rounded-bl-md mr-12"
                       }`}
                     >
                       {/* Deleted message */}
                       {message.deleted ? (
-                        <p className="text-sm sm:text-base leading-relaxed italic text-slate-400 opacity-60">
-                          <span className="line-through">{message.content}</span>
+                        <p className="text-sm italic text-slate-400 opacity-60">
+                          <span className="line-through">This message was deleted</span>
                         </p>
                       ) : message.messageType === "image" ? (
                         <div 
-                          className="relative cursor-pointer"
+                          className="relative cursor-pointer max-w-xs"
                           onClick={() => setViewingImage(message.content)}
                         >
                           <img
                             src={message.content}
                             alt="Sent image"
-                            className="max-w-full rounded-xl max-h-72 object-cover shadow-sm border border-slate-600/30 hover:opacity-90 transition-opacity"
+                            className="rounded-lg max-h-64 object-cover"
                             onError={(e) => e.target.style.display = "none"}
                           />
-                          {/* View indicator */}
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-xl opacity-0 hover:opacity-100 transition-opacity">
-                            <span className="bg-black/60 px-3 py-1 rounded-full text-xs text-white">Click to view</span>
-                          </div>
                         </div>
                       ) : (
-                        <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                           {message.content}
-                          {message.edited && <span className="text-[10px] ml-1 opacity-60">(edited)</span>}
+                          {message.edited && <span className="text-xs ml-1 opacity-70">(edited)</span>}
                         </p>
                       )}
-                      
+
                       {/* Reactions */}
                       {message.reactions && Object.keys(message.reactions).length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
@@ -373,80 +369,57 @@ const ChatWindow = () => {
                             <button
                               key={emoji}
                               onClick={() => handleToggleReaction(message._id, emoji)}
-                              className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-700/50 hover:bg-slate-600/50 transition ${
-                                users.includes(userData._id) ? 'ring-1 ring-cyan-400/50' : ''
+                              className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-colors ${
+                                users.includes(userData._id)
+                                  ? 'bg-cyan-600/30 text-cyan-300'
+                                  : 'bg-slate-600/50 text-slate-300 hover:bg-slate-500/50'
                               }`}
                             >
                               <span>{emoji}</span>
-                              <span className="text-slate-400">{users.length}</span>
+                              <span className="text-xs">{users.length}</span>
                             </button>
                           ))}
                         </div>
                       )}
-                      
+
                       {/* Quick reaction buttons */}
                       {!message.deleted && (
                         <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => handleToggleReaction(message._id, '👍')}
-                            className="p-1 rounded-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 hover:text-yellow-400 transition"
+                            className="p-1.5 rounded-full bg-slate-600/50 hover:bg-slate-500/50 text-slate-400 hover:text-yellow-400 transition-colors text-sm"
+                            title="Like"
                           >
                             👍
                           </button>
                           <button
                             onClick={() => handleToggleReaction(message._id, '❤️')}
-                            className="p-1 rounded-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 hover:text-red-400 transition"
+                            className="p-1.5 rounded-full bg-slate-600/50 hover:bg-slate-500/50 text-slate-400 hover:text-red-400 transition-colors text-sm"
+                            title="Love"
                           >
                             ❤️
                           </button>
                           <button
                             onClick={() => handleToggleReaction(message._id, '😂')}
-                            className="p-1 rounded-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 hover:text-yellow-400 transition"
+                            className="p-1.5 rounded-full bg-slate-600/50 hover:bg-slate-500/50 text-slate-400 hover:text-yellow-400 transition-colors text-sm"
+                            title="Laugh"
                           >
                             😂
                           </button>
                           <button
                             onClick={() => handleToggleReaction(message._id, '😮')}
-                            className="p-1 rounded-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 hover:text-blue-400 transition"
+                            className="p-1.5 rounded-full bg-slate-600/50 hover:bg-slate-500/50 text-slate-400 hover:text-blue-400 transition-colors text-sm"
+                            title="Wow"
                           >
                             😮
                           </button>
                         </div>
-                      )}
-                      
-                      {/* Action buttons - only show for own non-deleted messages */}
-                      {isOwn && !message.deleted && (
-                        <div className={`absolute top-1/2 -translate-y-1/2 ${isOwn ? '-left-16' : '-right-16'} flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200`}>
-                          {/* Reply Button */}
-                          <button
-                            onClick={() => dispatch(setReplyingTo(message))}
-                            className="p-2 rounded-full bg-slate-700/80 text-slate-400 hover:text-cyan-400 hover:bg-slate-600/80 shadow-lg"
-                          >
-                            <FaReply className="w-3.5 h-3.5" />
-                          </button>
-                          {/* Edit Button */}
-                          {message.messageType !== "image" && (
-                            <button
-                              onClick={() => setEditingMessage(message)}
-                              className="p-2 rounded-full bg-slate-700/80 text-slate-400 hover:text-yellow-400 hover:bg-slate-600/80 shadow-lg"
-                            >
-                              <FaPencil className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {/* Delete Button */}
-                          <button
-                            onClick={() => setShowMessageMenu(message._id)}
-                            className="p-2 rounded-full bg-slate-700/80 text-slate-400 hover:text-red-400 hover:bg-slate-600/80 shadow-lg"
-                          >
-                            <FaTrash className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Menu button for all messages */}
+                      )}Menu button for all messages */}
                       <button
                         onClick={() => setShowMessageMenu(message._id)}
-                        className={`absolute top-2 ${isOwn ? 'left-2' : 'right-2'} p-1.5 rounded-full bg-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-600/80 transition-all duration-200 opacity-0 group-hover:opacity-100`}
+                        className={`absolute top-1 ${isOwn ? 'left-1' : 'right-1'} p-1 rounded-full bg-slate-600/50 text-slate-400 hover:text-white hover:bg-slate-500/50 transition-all duration-200 opacity-0 group-hover:opacity-1
+                        onClick={() => setShowMessageMenu(message._id)}
+                        className={`absolute top-2 ${isOwn ? 'left-2' : 'right-2'} p-1.5 rounded-full bg-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-600/80 transition-all duration-200`}
                       >
                         <FaEllipsisVertical className="w-3 h-3" />
                       </button>
@@ -457,17 +430,17 @@ const ChatWindow = () => {
                       )}
                     </div>
                     
-                    {/* Delete/Edit Menu */}
+                    {/* Message Menu */}
                     {showMessageMenu === message._id && (
-                      <div className={`absolute ${isOwn ? 'right-0' : 'left-0'} top-full mt-1 bg-slate-800/95 backdrop-blur-md rounded-xl shadow-xl border border-slate-700/50 py-2 z-50 min-w-[120px]`}>
+                      <div className={`absolute ${isOwn ? 'right-2' : 'left-2'} top-8 bg-slate-800 rounded-lg shadow-lg border border-slate-600 py-1 z-50 min-w-[140px]`}>
                         <button
                           onClick={() => {
                             dispatch(setReplyingTo(message));
                             setShowMessageMenu(null);
                           }}
-                          className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700/50 hover:text-cyan-400 flex items-center gap-2"
+                          className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2"
                         >
-                          <FaReply className="w-3.5 h-3.5" />
+                          <FaReply className="w-4 h-4" />
                           Reply
                         </button>
                         {isOwn && !message.deleted && message.messageType !== "image" && (
@@ -476,18 +449,21 @@ const ChatWindow = () => {
                               setEditingMessage(message);
                               setShowMessageMenu(null);
                             }}
-                            className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700/50 hover:text-yellow-400 flex items-center gap-2"
+                            className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2"
                           >
-                            <FaPencil className="w-3.5 h-3.5" />
+                            <FaPencil className="w-4 h-4" />
                             Edit
                           </button>
                         )}
                         {isOwn && !message.deleted && (
                           <button
-                            onClick={() => handleDeleteMessage(message._id)}
-                            className="w-full px-4 py-2 text-left text-sm text-slate-300 hover:bg-slate-700/50 hover:text-red-400 flex items-center gap-2"
+                            onClick={() => {
+                              handleDeleteMessage(message._id);
+                              setShowMessageMenu(null);
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-700 flex items-center gap-2"
                           >
-                            <FaTrash className="w-3.5 h-3.5" />
+                            <FaTrash className="w-4 h-4" />
                             Delete
                           </button>
                         )}
@@ -495,12 +471,12 @@ const ChatWindow = () => {
                     )}
                     
                     {/* Timestamp and Read Status */}
-                    <div className={`flex items-center gap-1.5 px-1 text-[10px] ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
-                      <span className="text-slate-500 font-medium">
+                    <div className={`flex items-center gap-1 px-2 text-xs text-slate-500 mt-1 ${isOwn ? "justify-end" : "justify-start"}`}>
+                      <span>
                         {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                       {isOwn && !message.deleted && (
-                        <span className={`text-xs ${message.read ? "text-cyan-400" : "text-slate-500"}`}>
+                        <span className={`ml-1 ${message.read ? "text-cyan-400" : "text-slate-500"}`}>
                           <FaCheckDouble className="w-3 h-3" />
                         </span>
                       )}
