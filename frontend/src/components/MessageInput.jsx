@@ -3,7 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { useSocket } from "../context/SocketContext";
 import api from '../api.js'
 import { addMessage, setReplyingTo } from "../redux/chatSlice";
-import { FaPaperPlane, FaImage, FaXmark, FaReply, FaFaceSmile, FaMicrophone, FaStop } from "react-icons/fa6";
+import { FaPaperPlane, FaImage, FaXmark, FaReply, FaFaceSmile, FaMicrophone, FaStop, FaLock, FaUnlock } from "react-icons/fa6";
 import EmojiPicker from 'emoji-picker-react';
 
 const MessageInput = () => {
@@ -18,6 +18,9 @@ const MessageInput = () => {
   const [showRecordingUI, setShowRecordingUI] = useState(false);
   const [recordingBlob, setRecordingBlob] = useState(null);
   const [isRecordingPaused, setIsRecordingPaused] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const emojiPickerRef = useRef(null);
@@ -29,6 +32,9 @@ const MessageInput = () => {
   const analyserRef = useRef(null);
   const microphoneRef = useRef(null);
   const animationFrameRef = useRef(null);
+  const micButtonRef = useRef(null);
+  const dragStartY = useRef(0);
+  const dragStartTime = useRef(0);
   const dispatch = useDispatch();
   const socket = useSocket();
   const { currentChat, replyingTo } = useSelector((state) => state.chat);
@@ -154,7 +160,12 @@ const MessageInput = () => {
       mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
         setRecordingBlob(blob);
-        setShowRecordingUI(true);
+        
+        // Auto-send if not locked and not cancelled
+        if (!isLocked) {
+          await sendVoiceMessage(blob);
+        }
+        
         stream.getTracks().forEach(track => track.stop());
         cleanupAudioMonitoring();
       };
@@ -282,6 +293,9 @@ const MessageInput = () => {
     setAudioLevel(0);
     setRecordingBlob(null);
     setShowRecordingUI(false);
+    setIsDragging(false);
+    setDragOffset(0);
+    setIsLocked(false);
     isRecordingRef.current = false;
     if (recordingTimeoutRef.current) {
       clearInterval(recordingTimeoutRef.current);
@@ -322,6 +336,7 @@ const MessageInput = () => {
       setRecordingBlob(null);
       setRecordingTime(0);
       setAudioLevel(0);
+      setIsLocked(false);
     } catch (error) {
       console.error("Send voice message failed:", error);
       setRecordingError('Failed to send voice message. Please try again.');
@@ -376,9 +391,78 @@ const MessageInput = () => {
     dispatch(setReplyingTo(null));
   };
 
-  const handleEmojiClick = (emojiObject) => {
-    setContent(content + emojiObject.emoji);
-    setShowEmojiPicker(false);
+  const handleMouseDown = (e) => {
+    if (uploading || isRecording) return;
+    e.preventDefault();
+    dragStartY.current = e.clientY;
+    dragStartTime.current = Date.now();
+    startRecording();
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isRecording || isLocked) return;
+    const currentY = e.clientY;
+    const deltaY = dragStartY.current - currentY;
+    setDragOffset(Math.max(0, Math.min(deltaY, 100))); // Limit to 100px up
+    setIsDragging(deltaY > 10); // Start dragging after 10px
+  };
+
+  const handleMouseUp = (e) => {
+    if (!isRecording) return;
+    
+    const deltaY = dragStartY.current - e.clientY;
+    const holdTime = Date.now() - dragStartTime.current;
+    
+    if (deltaY > 50 && holdTime > 500) { // Slide up to cancel
+      cancelRecording();
+    } else if (deltaY > 80) { // Slide up to lock
+      setIsLocked(true);
+    } else if (holdTime < 500) { // Too short, cancel
+      cancelRecording();
+    } else { // Normal release, send
+      stopRecording();
+    }
+    
+    setIsDragging(false);
+    setDragOffset(0);
+  };
+
+  const handleTouchStart = (e) => {
+    if (uploading || isRecording) return;
+    e.preventDefault();
+    dragStartY.current = e.touches[0].clientY;
+    dragStartTime.current = Date.now();
+    startRecording();
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isRecording || isLocked) return;
+    e.preventDefault();
+    const currentY = e.touches[0].clientY;
+    const deltaY = dragStartY.current - currentY;
+    setDragOffset(Math.max(0, Math.min(deltaY, 100)));
+    setIsDragging(deltaY > 10);
+  };
+
+  const handleTouchEnd = (e) => {
+    if (!isRecording) return;
+    e.preventDefault();
+    
+    const deltaY = dragStartY.current - (e.changedTouches[0]?.clientY || dragStartY.current);
+    const holdTime = Date.now() - dragStartTime.current;
+    
+    if (deltaY > 50 && holdTime > 500) {
+      cancelRecording();
+    } else if (deltaY > 80) {
+      setIsLocked(true);
+    } else if (holdTime < 500) {
+      cancelRecording();
+    } else {
+      stopRecording();
+    }
+    
+    setIsDragging(false);
+    setDragOffset(0);
   };
 
   return (
@@ -404,8 +488,8 @@ const MessageInput = () => {
       )}
       
       <form onSubmit={handleSubmit} className="p-2 sm:p-4 border-t border-slate-700/30 bg-slate-900/80 backdrop-blur-xl">
-        {/* Recording Preview UI */}
-        {showRecordingUI && recordingBlob && (
+        {/* Recording Preview UI - Disabled for WhatsApp style */}
+        {false && showRecordingUI && recordingBlob && (
           <div className="mb-4 p-4 bg-gradient-to-r from-slate-800/80 to-slate-700/80 backdrop-blur-lg rounded-2xl border border-slate-600/50 shadow-xl">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
@@ -495,18 +579,25 @@ const MessageInput = () => {
             className="hidden"
           />
 
-          {/* Enhanced Voice Recording Button */}
+          {/* Enhanced Voice Recording Button - WhatsApp Style */}
           <div className="relative">
             <button
+              ref={micButtonRef}
               type="button"
-              onClick={isRecording ? stopRecording : startRecording}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
               disabled={uploading}
-              className={`relative p-2 sm:p-3 transition-all rounded-lg sm:rounded-xl disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`relative p-2 sm:p-3 transition-all rounded-lg sm:rounded-xl disabled:opacity-40 disabled:cursor-not-allowed select-none ${
                 isRecording
                   ? 'text-white bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 shadow-lg shadow-red-500/30'
                   : 'text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 hover:shadow-lg hover:shadow-cyan-500/10'
               } ${isRecording ? 'animate-pulse' : ''}`}
-              title={isRecording ? 'Stop Recording' : 'Start Voice Recording'}
+              title={isRecording ? 'Recording... Release to send, slide up to cancel' : 'Hold to record voice message'}
             >
               {isRecording ? <FaStop className="w-4 h-4 sm:w-5 sm:h-5" /> : <FaMicrophone className="w-4 h-4 sm:w-5 sm:h-5" />}
             </button>
@@ -515,55 +606,85 @@ const MessageInput = () => {
             {isRecording && (
               <div className="absolute inset-0 rounded-lg sm:rounded-xl bg-red-500/20 animate-ping"></div>
             )}
+
+            {/* Drag Indicator */}
+            {isRecording && !isLocked && (
+              <div 
+                className="absolute -top-16 left-1/2 transform -translate-x-1/2 transition-all duration-200"
+                style={{ transform: `translateX(-50%) translateY(${Math.max(-dragOffset, -60)}px)` }}
+              >
+                <div className={`flex flex-col items-center gap-2 p-3 rounded-2xl backdrop-blur-lg border transition-all ${
+                  isDragging 
+                    ? 'bg-red-500/90 border-red-400 text-white shadow-xl' 
+                    : 'bg-slate-800/90 border-slate-600 text-slate-300'
+                }`}>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                    isDragging ? 'bg-white/20 scale-110' : 'bg-slate-600/50'
+                  }`}>
+                    {isDragging ? <FaXmark className="w-6 h-6" /> : <FaMicrophone className="w-5 h-5" />}
+                  </div>
+                  <span className="text-xs font-medium whitespace-nowrap">
+                    {isDragging ? 'Release to cancel' : 'Slide up to cancel'}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Lock Indicator */}
+            {isRecording && dragOffset > 80 && !isLocked && (
+              <div className="absolute -top-24 left-1/2 transform -translate-x-1/2">
+                <div className="flex flex-col items-center gap-1 p-2 rounded-xl bg-cyan-500/90 border border-cyan-400 text-white shadow-xl">
+                  <FaLock className="w-4 h-4" />
+                  <span className="text-xs font-medium">Lock</span>
+                </div>
+              </div>
+            )}
+
+            {/* Locked Recording UI */}
+            {isLocked && (
+              <div className="absolute -top-32 left-1/2 transform -translate-x-1/2">
+                <div className="flex flex-col items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-red-500/20 to-red-600/20 backdrop-blur-lg border border-red-500/40 shadow-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 rounded-full bg-red-400 animate-pulse"></div>
+                    <span className="text-sm font-mono text-red-300 font-semibold">
+                      {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                  
+                  {/* Audio Level Indicator */}
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 8 }, (_, i) => (
+                      <div
+                        key={i}
+                        className={`w-1 rounded-full transition-all duration-100 ${
+                          audioLevel > (i + 1) / 8 ? 'bg-red-400 h-4' : 'bg-red-400/30 h-2'
+                        }`}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsLocked(false)}
+                      className="px-3 py-1.5 text-xs text-slate-300 hover:text-white hover:bg-slate-600/50 rounded-lg transition"
+                      title="Unlock"
+                    >
+                      <FaUnlock className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={stopRecording}
+                      className="px-4 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-medium rounded-lg hover:from-cyan-400 hover:to-cyan-500 transition shadow-lg shadow-cyan-500/20"
+                      title="Send"
+                    >
+                      <FaPaperPlane className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Enhanced Recording Status */}
-          {isRecording && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-red-500/20 to-red-600/20 backdrop-blur-lg border border-red-500/40 rounded-xl shadow-lg">
-              <div className="flex items-center gap-2">
-                <div className={`w-3 h-3 rounded-full ${isRecordingPaused ? 'bg-yellow-400' : 'bg-red-400 animate-pulse'}`}></div>
-                <span className="text-sm font-mono text-red-300 font-semibold">
-                  {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
-                </span>
-              </div>
-
-              {/* Audio Level Indicator */}
-              <div className="flex items-center gap-1">
-                {Array.from({ length: 8 }, (_, i) => (
-                  <div
-                    key={i}
-                    className={`w-1 rounded-full transition-all duration-100 ${
-                      audioLevel > (i + 1) / 8 ? 'bg-red-400 h-4' : 'bg-red-400/30 h-2'
-                    }`}
-                  />
-                ))}
-              </div>
-
-              {/* Pause/Resume Button */}
-              <button
-                type="button"
-                onClick={pauseRecording}
-                className="p-1 text-red-300 hover:text-red-100 hover:bg-red-500/20 rounded transition"
-                title={isRecordingPaused ? 'Resume Recording' : 'Pause Recording'}
-              >
-                {isRecordingPaused ? <FaMicrophone className="w-3 h-3" /> : <FaStop className="w-3 h-3" />}
-              </button>
-
-              {/* Cancel Button */}
-              <button
-                type="button"
-                onClick={cancelRecording}
-                className="p-1 text-red-300 hover:text-red-100 hover:bg-red-500/20 rounded transition"
-                title="Cancel Recording"
-              >
-                <FaXmark className="w-3 h-3" />
-              </button>
-
-              {recordingTime >= 270 && (
-                <span className="text-xs text-red-200 font-medium animate-pulse">Recording limit soon</span>
-              )}
-            </div>
-          )}
 
           {/* Error Message */}
           {recordingError && (
