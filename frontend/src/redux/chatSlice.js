@@ -36,15 +36,14 @@ const chatSlice = createSlice({
     },
     updateMessageContent: (state, action) => {
       const { messageId, content, edited, deleted } = action.payload;
-      const message = state.messages.find(m => m._id === messageId);
-      if (message) {
-        message.content = content;
-        if (edited !== undefined) {
-          message.edited = edited;
-        }
-        if (deleted !== undefined) {
-          message.deleted = deleted;
-        }
+      const messageIndex = state.messages.findIndex(m => m._id === messageId);
+      if (messageIndex !== -1) {
+        state.messages[messageIndex] = {
+          ...state.messages[messageIndex],
+          content,
+          ...(edited !== undefined && { edited }),
+          ...(deleted !== undefined && { deleted })
+        };
       }
     },
     setLoading: (state, action) => {

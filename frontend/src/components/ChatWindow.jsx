@@ -197,7 +197,7 @@ const ChatWindow = () => {
         socket.off("typing_stop");
       };
     }
-  }, [socket, currentChat, dispatch, messages, userData]);
+  }, [socket, currentChat]);
 
   // Mark messages as seen when viewing
   useEffect(() => {
