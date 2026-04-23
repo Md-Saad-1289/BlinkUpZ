@@ -91,7 +91,7 @@ const ChatList = () => {
                 (p) => p._id !== userData._id
               );
               const isActive = currentChat?._id === chat._id;
-              const isOnline = onlineUsers[otherParticipant?._id] === 'online';
+              const isOnline = onlineUsers[otherParticipant?._id] === 'online' || otherParticipant?.status === 'online';
 
               return (
                 <div

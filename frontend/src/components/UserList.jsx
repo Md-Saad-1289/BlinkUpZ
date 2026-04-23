@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import api from '../api.js'
 import { FaMagnifyingGlass, FaSpinner, FaUser } from "react-icons/fa6";
 
 const UserList = ({ onSelectUser, onClose }) => {
   const [users, setUsers] = useState([]);
+  const onlineUsers = useSelector((state) => state.user.onlineUsers);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -69,37 +71,40 @@ const UserList = ({ onSelectUser, onClose }) => {
 
         {!loading && users.length > 0 && (
           <div className="p-2">
-            {users.map((user) => (
-              <div
-                key={user._id}
-                onClick={() => {
-                  onSelectUser(user);
-                  onClose();
-                }}
-                className="p-3 mx-2 my-1 rounded-xl hover:bg-gradient-to-r hover:from-cyan-500/15 hover:to-transparent cursor-pointer transition-all duration-200 group"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <img
-                      src={user.image || "/default-avatar.svg"}
-                      alt={user.username}
-                      className="w-12 h-12 rounded-2xl object-cover border-2 border-slate-700 group-hover:border-cyan-500/60 shadow-md group-hover:shadow-cyan-500/20 transition-all"
-                    />
-                    <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${user.status === 'online' ? 'bg-green-500' : 'bg-slate-500'}`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold group-hover:text-cyan-400 transition truncate">{user.name || user.username}</p>
-                    <p className="text-slate-500 text-xs truncate">{user.email}</p>
-                    <p className={`text-[10px] mt-1 ${user.status === 'online' ? 'text-green-300' : 'text-slate-500'}`}>
-                      {user.status === 'online' ? 'Online' : 'Offline'}
-                    </p>
-                  </div>
-                  <div className="w-9 h-9 rounded-xl bg-slate-800/60 flex items-center justify-center group-hover:bg-cyan-500/20 group-hover:scale-110 transition-all">
-                    <FaUser className="w-4 h-4 text-slate-500 group-hover:text-cyan-400" />
+            {users.map((user) => {
+              const status = onlineUsers[user._id] || user.status || 'offline';
+              return (
+                <div
+                  key={user._id}
+                  onClick={() => {
+                    onSelectUser(user);
+                    onClose();
+                  }}
+                  className="p-3 mx-2 my-1 rounded-xl hover:bg-gradient-to-r hover:from-cyan-500/15 hover:to-transparent cursor-pointer transition-all duration-200 group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <img
+                        src={user.image || "/default-avatar.svg"}
+                        alt={user.username}
+                        className="w-12 h-12 rounded-2xl object-cover border-2 border-slate-700 group-hover:border-cyan-500/60 shadow-md group-hover:shadow-cyan-500/20 transition-all"
+                      />
+                      <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${status === 'online' ? 'bg-green-500' : 'bg-slate-500'}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold group-hover:text-cyan-400 transition truncate">{user.name || user.username}</p>
+                      <p className="text-slate-500 text-xs truncate">{user.email}</p>
+                      <p className={`text-[10px] mt-1 ${status === 'online' ? 'text-green-300' : 'text-slate-500'}`}>
+                        {status === 'online' ? 'Online' : 'Offline'}
+                      </p>
+                    </div>
+                    <div className="w-9 h-9 rounded-xl bg-slate-800/60 flex items-center justify-center group-hover:bg-cyan-500/20 group-hover:scale-110 transition-all">
+                      <FaUser className="w-4 h-4 text-slate-500 group-hover:text-cyan-400" />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
