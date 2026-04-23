@@ -255,3 +255,62 @@ export const editMessage = async (req, res) => {
     res.status(500).json({ message: "Failed to edit message" });
   }
 };
+
+// Add or remove reaction from a message
+export const toggleReaction = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+    const userId = req.userId;
+
+    if (!emoji) {
+      return res.status(400).json({ message: "Emoji is required" });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    // Verify user is participant in the chat
+    const chat = await Chat.findById(message.chat);
+    if (!chat || !chat.participants.includes(userId)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Initialize reactions if not exists
+    if (!message.reactions) {
+      message.reactions = new Map();
+    }
+
+    // Get current reactions for this emoji
+    const currentUsers = message.reactions.get(emoji) || [];
+
+    // Check if user already reacted
+    const userIndex = currentUsers.indexOf(userId);
+
+    if (userIndex > -1) {
+      // Remove reaction
+      currentUsers.splice(userIndex, 1);
+      if (currentUsers.length === 0) {
+        message.reactions.delete(emoji);
+      } else {
+        message.reactions.set(emoji, currentUsers);
+      }
+    } else {
+      // Add reaction
+      currentUsers.push(userId);
+      message.reactions.set(emoji, currentUsers);
+    }
+
+    await message.save();
+
+    res.status(200).json({ 
+      message: userIndex > -1 ? "Reaction removed" : "Reaction added",
+      reactions: Object.fromEntries(message.reactions)
+    });
+  } catch (error) {
+    console.error("toggleReaction error:", error);
+    res.status(500).json({ message: "Failed to toggle reaction" });
+  }
+};

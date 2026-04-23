@@ -10,15 +10,34 @@ const MessageInput = () => {
   const [content, setContent] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const fileInputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
   const dispatch = useDispatch();
   const socket = useSocket();
   const { currentChat, replyingTo } = useSelector((state) => state.chat);
   const { userData } = useSelector((state) => state.user);
 
-  const handleEmojiClick = (emojiObject) => {
-    setContent((prev) => prev + emojiObject.emoji);
-    // Don't close picker for multi-emoji selection
+  const handleInputChange = (e) => {
+    setContent(e.target.value);
+    
+    if (socket && currentChat && !isTyping) {
+      socket.emit("typing_start", { chatId: currentChat._id, userId: userData._id });
+      setIsTyping(true);
+    }
+    
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    // Set new timeout to stop typing
+    typingTimeoutRef.current = setTimeout(() => {
+      if (socket && currentChat && isTyping) {
+        socket.emit("typing_stop", { chatId: currentChat._id, userId: userData._id });
+        setIsTyping(false);
+      }
+    }, 1000);
   };
 
   const handleImageSelect = async (e) => {
@@ -75,6 +94,12 @@ const MessageInput = () => {
         message: res.data,
         senderId: userData._id,
       });
+      
+      // Stop typing
+      if (isTyping) {
+        socket?.emit("typing_stop", { chatId: currentChat._id, userId: userData._id });
+        setIsTyping(false);
+      }
     } catch (error) {
       console.error("Send message failed:", error);
     }
@@ -152,7 +177,7 @@ const MessageInput = () => {
           <input
             type="text"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={handleInputChange}
             placeholder="Type..."
             className="flex-1 px-3 sm:px-5 py-2 sm:py-3 rounded-xl sm:rounded-2xl bg-slate-800/60 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:bg-slate-800/80 transition-all border border-slate-700/50 text-sm"
           />

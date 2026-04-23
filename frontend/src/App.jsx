@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom"
 import { useSelector } from "react-redux"
+import { useEffect } from "react"
 import Login from "./pages/login.jsx"
 import SignUp from "./pages/Signup.jsx"
 import Home from "./pages/Home.jsx"
@@ -11,6 +12,17 @@ function App() {
   useGetCurrentUser()
 
   const { userData } = useSelector((state) => state.user)
+
+  useEffect(() => {
+    // Request notification permission
+    if ('Notification' in window && 'serviceWorker' in navigator) {
+      Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+          console.log('Notification permission granted');
+        }
+      });
+    }
+  }, []);
 
   return (
     <Routes>

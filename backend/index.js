@@ -100,6 +100,17 @@ io.on('connection', (socket) => {
     io.to(chatId).emit('message_seen', { messageId, userId });
   });
 
+  // Typing indicators
+  socket.on('typing_start', (data) => {
+    const { chatId, userId } = data;
+    socket.to(chatId).emit('typing_start', { chatId, userId });
+  });
+
+  socket.on('typing_stop', (data) => {
+    const { chatId, userId } = data;
+    socket.to(chatId).emit('typing_stop', { chatId, userId });
+  });
+
   // Get online users
   socket.on('get_online_users', (callback) => {
     callback(Array.from(userSocketMap.keys()));

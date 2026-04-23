@@ -47,6 +47,13 @@ const chatSlice = createSlice({
         }
       }
     },
+    updateMessageReactions: (state, action) => {
+      const { messageId, reactions } = action.payload;
+      const message = state.messages.find(m => m._id === messageId);
+      if (message) {
+        message.reactions = reactions;
+      }
+    },
     setLoading: (state, action) => {
       state.loading = action.payload;
     },

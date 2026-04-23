@@ -5,7 +5,7 @@ import { addMessage, setReplyingTo, markMessageSeen } from "../redux/chatSlice";
 import useGetMessages from "../Hooks/useGetMessages";
 import MessageInput from "./MessageInput";
 import ImageViewer from "./ImageViewer";
-import { FaPhone, FaVideo, FaEllipsisVertical, FaCheck, FaCheckDouble, FaReply, FaTrash, FaPencil } from "react-icons/fa6";
+import { FaPhone, FaVideo, FaEllipsisVertical, FaCheck, FaCheckDouble, FaReply, FaTrash, FaPencil, FaHeart, FaThumbsUp, FaLaugh, FaAngry } from "react-icons/fa6";
 import axios from "axios";
 import { serverUrl } from "../config";
 
@@ -41,6 +41,8 @@ const ChatWindow = () => {
   const [viewingImage, setViewingImage] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [showMessageMenu, setShowMessageMenu] = useState(null); // messageId for menu
+  const [typingUsers, setTypingUsers] = useState([]);
+  const [isWindowFocused, setIsWindowFocused] = useState(true);
 
   useGetMessages(currentChat?._id);
 
@@ -73,6 +75,20 @@ const ChatWindow = () => {
     }
   };
 
+  // Toggle reaction function
+  const handleToggleReaction = async (messageId, emoji) => {
+    try {
+      const response = await axios.post(`${serverUrl}/api/chat/messages/${messageId}/reactions`, 
+        { emoji },
+        { withCredentials: true }
+      );
+      // Update local state
+      dispatch({ type: 'chat/updateMessageReactions', payload: { messageId, reactions: response.data.reactions } });
+    } catch (error) {
+      console.error("Failed to toggle reaction:", error);
+    }
+  };
+
   // Get other participant
   const otherParticipant = currentChat?.participants?.find(
     (p) => p._id !== userData?._id
@@ -90,6 +106,20 @@ const ChatWindow = () => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [viewingImage]);
 
+  // Handle window focus
+  useEffect(() => {
+    const handleFocus = () => setIsWindowFocused(true);
+    const handleBlur = () => setIsWindowFocused(false);
+    
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
   useEffect(() => {
     if (socket && currentChat) {
       socket.emit("join_chat", currentChat._id);
@@ -98,6 +128,26 @@ const ChatWindow = () => {
         const exists = messages.some((m) => m._id === message._id);
         if (!exists) {
           dispatch(addMessage(message));
+          
+          // Show notification if window is not focused and message is not from current user
+          if (!isWindowFocused && message.sender._id !== userData._id && 'Notification' in window) {
+            if (Notification.permission === 'granted') {
+              const notification = new Notification(`New message from ${message.sender.name || message.sender.username}`, {
+                body: message.content.length > 50 ? message.content.substring(0, 50) + '...' : message.content,
+                icon: message.sender.image || '/logo.png',
+                tag: `chat-${currentChat._id}`,
+                requireInteraction: false
+              });
+              
+              notification.onclick = () => {
+                window.focus();
+                notification.close();
+              };
+              
+              // Auto close after 5 seconds
+              setTimeout(() => notification.close(), 5000);
+            }
+          }
         }
       });
 
@@ -107,9 +157,28 @@ const ChatWindow = () => {
         }
       });
 
+      socket.on("typing_start", ({ userId, chatId }) => {
+        if (chatId === currentChat._id && userId !== userData._id) {
+          setTypingUsers(prev => {
+            if (!prev.includes(userId)) {
+              return [...prev, userId];
+            }
+            return prev;
+          });
+        }
+      });
+
+      socket.on("typing_stop", ({ userId, chatId }) => {
+        if (chatId === currentChat._id) {
+          setTypingUsers(prev => prev.filter(id => id !== userId));
+        }
+      });
+
       return () => {
         socket.off("receive_message");
         socket.off("message_seen");
+        socket.off("typing_start");
+        socket.off("typing_stop");
       };
     }
   }, [socket, currentChat, dispatch, messages, userData]);
@@ -179,7 +248,11 @@ const ChatWindow = () => {
                 {otherParticipant?.name || otherParticipant?.username}
               </h2>
               <p className={`text-[10px] sm:text-xs flex items-center gap-1 font-medium ${isOtherOnline ? 'text-green-400/90' : 'text-slate-500'}`}>
-                {isOtherOnline ? (
+                {typingUsers.length > 0 ? (
+                  <span className="text-cyan-400/90">
+                    {typingUsers.length === 1 ? 'typing...' : `${typingUsers.length} typing...`}
+                  </span>
+                ) : isOtherOnline ? (
                   <>
                     <span className="w-1.5 sm:w-2 h-1.5 sm:h-2 bg-green-400 rounded-full animate-pulse"></span>
                     <span>Online</span>
@@ -291,6 +364,54 @@ const ChatWindow = () => {
                           {message.content}
                           {message.edited && <span className="text-[10px] ml-1 opacity-60">(edited)</span>}
                         </p>
+                      )}
+                      
+                      {/* Reactions */}
+                      {message.reactions && Object.keys(message.reactions).length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {Object.entries(message.reactions).map(([emoji, users]) => (
+                            <button
+                              key={emoji}
+                              onClick={() => handleToggleReaction(message._id, emoji)}
+                              className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-slate-700/50 hover:bg-slate-600/50 transition ${
+                                users.includes(userData._id) ? 'ring-1 ring-cyan-400/50' : ''
+                              }`}
+                            >
+                              <span>{emoji}</span>
+                              <span className="text-slate-400">{users.length}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      
+                      {/* Quick reaction buttons */}
+                      {!message.deleted && (
+                        <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleToggleReaction(message._id, '👍')}
+                            className="p-1 rounded-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 hover:text-yellow-400 transition"
+                          >
+                            👍
+                          </button>
+                          <button
+                            onClick={() => handleToggleReaction(message._id, '❤️')}
+                            className="p-1 rounded-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 hover:text-red-400 transition"
+                          >
+                            ❤️
+                          </button>
+                          <button
+                            onClick={() => handleToggleReaction(message._id, '😂')}
+                            className="p-1 rounded-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 hover:text-yellow-400 transition"
+                          >
+                            😂
+                          </button>
+                          <button
+                            onClick={() => handleToggleReaction(message._id, '😮')}
+                            className="p-1 rounded-full bg-slate-700/50 hover:bg-slate-600/50 text-slate-400 hover:text-blue-400 transition"
+                          >
+                            😮
+                          </button>
+                        </div>
                       )}
                       
                       {/* Action buttons - only show for own non-deleted messages */}
