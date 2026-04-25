@@ -9,6 +9,7 @@ import cors from "cors";
 import userRouter from "./routes/user.route.js";
 import chatRouter from "./routes/chat.js";
 import User from "./models/user.model.js";
+import Message from "./models/message.model.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import path from "path";
@@ -97,10 +98,27 @@ io.on('connection', (socket) => {
     socket.to(chatId).emit('receive_message', message);
   });
 
-  // Mark message as seen
-  socket.on('mark_seen', (data) => {
-    const { chatId, messageId, userId } = data;
-    io.to(chatId).emit('message_seen', { messageId, userId });
+  // Mark message(s) as seen
+  socket.on('mark_seen', async (data) => {
+    const { chatId, messageId, messageIds, userId } = data;
+
+    try {
+      if (Array.isArray(messageIds) && messageIds.length > 0) {
+        await Message.updateMany(
+          { _id: { $in: messageIds }, chat: chatId, sender: { $ne: userId }, read: false },
+          { $set: { read: true } }
+        );
+      } else if (messageId) {
+        await Message.findByIdAndUpdate(messageId, { read: true });
+      }
+    } catch (error) {
+      console.error('Failed to mark messages seen:', error);
+    }
+
+    io.to(chatId).emit('message_seen', {
+      messageIds: Array.isArray(messageIds) ? messageIds : messageId ? [messageId] : [],
+      userId
+    });
   });
 
   // Typing indicators

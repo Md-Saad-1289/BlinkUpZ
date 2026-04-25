@@ -31,10 +31,13 @@ const chatSlice = createSlice({
       state.replyingTo = action.payload;
     },
     markMessageSeen: (state, action) => {
-      const message = state.messages.find(m => m._id === action.payload);
-      if (message) {
-        message.read = true;
-      }
+      const messageIds = Array.isArray(action.payload) ? action.payload : [action.payload];
+      messageIds.forEach((messageId) => {
+        const message = state.messages.find(m => m._id === messageId);
+        if (message) {
+          message.read = true;
+        }
+      });
     },
     updateMessageContent: (state, action) => {
       const { messageId, content, edited, deleted } = action.payload;

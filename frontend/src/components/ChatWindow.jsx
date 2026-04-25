@@ -146,9 +146,9 @@ const ChatWindow = () => {
         }
       });
 
-      socket.on("message_seen", ({ messageId, userId }) => {
-        if (userId === userData._id) {
-          dispatch(markMessageSeen(messageId));
+      socket.on("message_seen", ({ messageIds }) => {
+        if (Array.isArray(messageIds) && messageIds.length > 0) {
+          dispatch(markMessageSeen(messageIds));
         }
       });
 
@@ -206,20 +206,38 @@ const ChatWindow = () => {
 
   // Mark messages as seen when viewing
   useEffect(() => {
-    if (socket && currentChat && messages.length > 0) {
-      const unreadMessages = messages.filter(
-        (m) => m.sender._id !== userData._id && !m.read
-      );
-      
-      unreadMessages.forEach((msg) => {
+    if (!socket || !currentChat || messages.length === 0) return;
+
+    const unreadMessages = messages.filter(
+      (m) => m.sender._id !== userData._id && !m.read
+    );
+
+    if (unreadMessages.length === 0) return;
+
+    const markAsSeen = async () => {
+      const messageIds = unreadMessages.map((msg) => msg._id);
+
+      try {
+        await axios.put(
+          `${serverUrl}/api/chat/${currentChat._id}/messages/seen`,
+          {},
+          { withCredentials: true }
+        );
+
+        dispatch(markMessageSeen(messageIds));
+
         socket.emit("mark_seen", {
           chatId: currentChat._id,
-          messageId: msg._id,
+          messageIds,
           userId: userData._id
         });
-      });
-    }
-  }, [socket, currentChat, messages, userData]);
+      } catch (error) {
+        console.error("Failed to mark messages as seen:", error);
+      }
+    };
+
+    markAsSeen();
+  }, [socket, currentChat, messages, userData, dispatch]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
