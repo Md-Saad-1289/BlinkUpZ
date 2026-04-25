@@ -60,7 +60,9 @@ function Profile() {
       setTimeout(() => setSuccess(""), 3000)
     } catch (err) {
       console.error("Profile update failed:", err)
-      setError(err.response?.data?.message || "Failed to update profile. Please try again.")
+      setError(
+        err.response?.data?.message || err.response?.data?.Message || "Failed to update profile. Please try again."
+      )
       setTimeout(() => setError(""), 5000)
     } finally {
       setSaving(false)

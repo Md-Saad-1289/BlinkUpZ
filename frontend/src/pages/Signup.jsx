@@ -34,7 +34,9 @@ function SignUp() {
       navigate('/home')
     } catch (err) {
       console.error('Signup error:', err)
-      setError(err.response?.data?.Message || 'Signup failed. Try again.')
+      setError(
+        err.response?.data?.message || err.response?.data?.Message || 'Signup failed. Try again.'
+      )
     } finally {
       setLoading(false)
     }

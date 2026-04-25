@@ -11,14 +11,12 @@ const UserList = ({ onSelectUser, onClose }) => {
 
   useEffect(() => {
     const fetchUsers = async () => {
-      if (!search.trim()) {
-        setUsers([]);
-        return;
-      }
-
       setLoading(true);
       try {
-        const res = await api.get(`/api/user/search?q=${encodeURIComponent(search)}`);
+        const res = search.trim()
+          ? await api.get(`/api/user/search?q=${encodeURIComponent(search)}`)
+          : await api.get('/api/user/all');
+
         setUsers(res.data);
       } catch (error) {
         console.error("Search users failed:", error);
