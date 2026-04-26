@@ -87,7 +87,6 @@ const MessageInput = () => {
   const [uploading, setUploading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showFormattingHint, setShowFormattingHint] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [recordingError, setRecordingError] = useState(null);
@@ -162,25 +161,9 @@ const MessageInput = () => {
     }
   }, [socket, currentChat, isTyping, userData]);
 
-  const shouldShowFormattingHint = (text) => {
-    const trimmed = text.trimEnd();
-    if (!trimmed) return false;
-
-    const triggerPatterns = [
-      /(^|\s)@[\w]*$/,
-      /(^|\s)#\([\w]*$/,
-      /(^|\s)\*[\w]*$/,
-      /(^|\s)\$\$[\w]*$/,
-      /rich text formatting$/i,
-    ];
-
-    return triggerPatterns.some((pattern) => pattern.test(trimmed));
-  };
-
   const handleInputChange = (e) => {
     const nextValue = e.target.value;
     setContent(nextValue);
-    setShowFormattingHint(shouldShowFormattingHint(nextValue));
 
     if (socket && currentChat && !isTyping) {
       socket.emit("typing_start", {
@@ -448,7 +431,6 @@ const MessageInput = () => {
       dispatch(addMessage(res.data));
       dispatch(setReplyingTo(null));
       setContent("");
-      setShowFormattingHint(false);
       socket?.emit("send_message", {
         chatId: currentChat._id,
         message: res.data,
@@ -643,20 +625,6 @@ const MessageInput = () => {
               className="w-full resize-none px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-slate-800/60 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:bg-slate-800/80 transition-all border border-slate-700/50 text-sm leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed max-h-32 overflow-y-auto"
               style={{ fieldSizing: "content" }}
             />
-            {showFormattingHint && (
-              <div className="mt-2 rounded-2xl border border-cyan-500/20 bg-slate-950/95 p-3 text-xs text-slate-300 shadow-lg shadow-cyan-900/10">
-                <p className="text-slate-200 font-semibold mb-2">Formatting shortcuts</p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 text-[11px]">
-                  <span className="rounded-lg bg-slate-900/80 px-2 py-1">**bold**</span>
-                  <span className="rounded-lg bg-slate-900/80 px-2 py-1">*italic*</span>
-                  <span className="rounded-lg bg-slate-900/80 px-2 py-1">__underline__</span>
-                  <span className="rounded-lg bg-slate-900/80 px-2 py-1">~~strike~~</span>
-                  <span className="rounded-lg bg-slate-900/80 px-2 py-1">`code`</span>
-                  <span className="rounded-lg bg-slate-900/80 px-2 py-1">#(https://url)</span>
-                </div>
-                <p className="mt-2 text-slate-500">Type @, #, *, $$ or “Rich Text Formatting” to see this hint.</p>
-              </div>
-            )}
           </div>
 
           <div className="relative flex-shrink-0 mb-0.5">
