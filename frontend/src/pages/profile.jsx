@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom"
 import api from "../api.js"
 import { setUserData } from "../redux/userSlice"
 import { FaArrowLeft, FaUser, FaEnvelope, FaFloppyDisk, FaSpinner, FaBell, FaBellSlash } from "react-icons/fa6"
-import { enableNotifications, isPushSupported, getNotificationPermission } from "../utils/notifications.js"
+import { enableNotifications, disableNotifications, isPushSupported, getNotificationPermission } from "../utils/notifications.js"
 
 function Profile() {
   const { userData } = useSelector((state) => state.user)
@@ -20,6 +20,7 @@ function Profile() {
   const [success, setSuccess] = useState("")
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [notificationSupported, setNotificationSupported] = useState(true)
+  const [notificationPermission, setNotificationPermission] = useState('default')
 
   const imageRef = useRef()
 
@@ -30,7 +31,9 @@ function Profile() {
     // Check notification status
     if (isPushSupported()) {
       setNotificationSupported(true)
-      setNotificationsEnabled(getNotificationPermission() === 'granted')
+      const permission = getNotificationPermission();
+      setNotificationPermission(permission);
+      setNotificationsEnabled(permission === 'granted');
     } else {
       setNotificationSupported(false)
     }
@@ -204,7 +207,7 @@ function Profile() {
                 <div>
                   <h3 className="text-sm font-semibold text-white">Push Notifications</h3>
                   <p className="text-xs text-slate-400">
-                    {notificationsEnabled ? "Enabled - You'll receive message alerts" : "Disabled - Enable to get notified"}
+                    {notificationsEnabled ? "Enabled - You'll receive message alerts" : notificationPermission === 'denied' ? "Disabled - browser permission denied. Update notification permissions in your browser settings." : "Disabled - Enable to get notified"}
                   </p>
                 </div>
               </div>
@@ -212,11 +215,13 @@ function Profile() {
                 type="button"
                 onClick={async () => {
                   if (notificationsEnabled) {
-                    // Already enabled, do nothing or could offer to disable
-                    setNotificationsEnabled(false)
+                    await disableNotifications();
+                    setNotificationsEnabled(false);
+                    setNotificationPermission(getNotificationPermission());
                   } else {
-                    const granted = await enableNotifications()
-                    setNotificationsEnabled(granted)
+                    const granted = await enableNotifications();
+                    setNotificationsEnabled(granted);
+                    setNotificationPermission(getNotificationPermission());
                   }
                 }}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -225,7 +230,7 @@ function Profile() {
                     : "bg-cyan-500 text-white hover:bg-cyan-600"
                 }`}
               >
-                {notificationsEnabled ? "Enabled" : "Enable"}
+                {notificationsEnabled ? "Disable" : "Enable"}
               </button>
             </div>
           </div>

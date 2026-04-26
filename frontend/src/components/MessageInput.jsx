@@ -12,7 +12,7 @@ import EmojiPicker from 'emoji-picker-react';
 
 // ─── Multi-Emoji Peek System ────────────────────────────────────────────────
 
-const QUICK_EMOJIS = ["😂", "❤️", "👍", "😭", "🙏", "😍", "🔥", "💀"];
+const QUICK_EMOJIS = ["🤣", "❤️", "👍", "😢", "😤", "😍", "🙄", "💀"];
 const MAX_RECENT = 8;
 const RECENT_KEY = "chat_recent_emojis";
 

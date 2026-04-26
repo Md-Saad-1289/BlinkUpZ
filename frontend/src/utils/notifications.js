@@ -1,10 +1,12 @@
+import { serverUrl } from '../config.js';
+
 // Notification utility for managing push notifications
 
 const NOTIFICATION_PERMISSION_KEY = 'blinkupz_notification_permission';
 
 // Check if push notifications are supported
 export const isPushSupported = () => {
-  return 'Notification' in window && 'serviceWorker' in navigator;
+  return 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
 };
 
 // Request notification permission
@@ -63,20 +65,41 @@ export const showLocalNotification = (title, body, icon = '/logo.png', onClick) 
   return null;
 };
 
+const getVapidPublicKey = async () => {
+  const response = await fetch(`${serverUrl}/api/user/notifications/public-key`, {
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch VAPID public key');
+  }
+  const data = await response.json();
+  return data.publicKey;
+};
+
+const sendSubscriptionToServer = async (subscription) => {
+  await fetch(`${serverUrl}/api/user/notifications/subscribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(subscription)
+  });
+};
+
+const removeSubscriptionFromServer = async (endpoint) => {
+  await fetch(`${serverUrl}/api/user/notifications/unsubscribe`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ endpoint })
+  });
+};
+
 // Register service worker for push
 export const registerServiceWorker = async () => {
   if ('serviceWorker' in navigator) {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
       console.log('Service Worker registered:', registration);
-      
-      // Check for push subscription
-      const subscription = await registration.pushManager.getSubscription();
-      if (!subscription) {
-        // Subscribe to push notifications
-        await subscribeToPush(registration);
-      }
-      
       return registration;
     } catch (error) {
       console.error('Service Worker registration failed:', error);
@@ -89,21 +112,13 @@ export const registerServiceWorker = async () => {
 // Subscribe to push notifications
 const subscribeToPush = async (registration) => {
   try {
-    // Note: In production, you would get this from your server
-    const vapidPublicKey = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U';
-    
+    const vapidPublicKey = await getVapidPublicKey();
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
     });
-    
-    // Send subscription to server
-    // await fetch('/api/notifications/subscribe', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(subscription)
-    // });
-    
+
+    await sendSubscriptionToServer(subscription);
     console.log('Push subscription successful');
     return subscription;
   } catch (error) {
@@ -132,7 +147,10 @@ const urlBase64ToUint8Array = (base64String) => {
 export const enableNotifications = async () => {
   const granted = await requestNotificationPermission();
   if (granted) {
-    await registerServiceWorker();
+    const registration = await registerServiceWorker();
+    if (registration) {
+      await subscribeToPush(registration);
+    }
     showLocalNotification('Notifications Enabled', 'You will now receive message notifications!');
   }
   return granted;
@@ -141,11 +159,24 @@ export const enableNotifications = async () => {
 // Disable notifications
 export const disableNotifications = async () => {
   if ('serviceWorker' in navigator) {
-    const registrations = await navigator.serviceWorker.getRegistrations();
-    for (const registration of registrations) {
-      await registration.unregister();
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+
+    if (subscription) {
+      try {
+        await removeSubscriptionFromServer(subscription.endpoint);
+      } catch (error) {
+        console.error('Failed to remove push subscription from server:', error);
+      }
+
+      try {
+        await subscription.unsubscribe();
+      } catch (error) {
+        console.error('Failed to unsubscribe from push:', error);
+      }
     }
   }
+
   localStorage.removeItem(NOTIFICATION_PERMISSION_KEY);
 };
 

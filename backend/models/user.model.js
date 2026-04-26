@@ -10,6 +10,10 @@ const userSchema = new mongoose.Schema({
       type: String,
       enum: ["online", "offline"],
       default: "offline"
+    },
+    pushSubscriptions: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: []
     }
 }, { timestamps: true });
 

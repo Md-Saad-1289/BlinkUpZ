@@ -2,6 +2,7 @@ import Chat from "../models/chat.model.js";
 import Message from "../models/message.model.js";
 import User from "../models/user.model.js";
 import uploadOnCloudinary from "../config/cloudinary.js";
+import { sendPushNotification } from "../utils/push.js";
 
 // Get all chats for a user
 export const getChats = async (req, res) => {
@@ -157,6 +158,28 @@ export const sendMessage = async (req, res) => {
           select: "username name"
         }
       });
+
+    const pushBody =
+      messageTypeFinal === 'image'
+        ? 'Sent an image'
+        : messageTypeFinal === 'audio'
+          ? 'Sent a voice message'
+          : messageContent.slice(0, 120);
+
+    const chatParticipantIds = chat.participants.map((participant) => participant.toString());
+    for (const participantId of chatParticipantIds) {
+      if (participantId !== userId) {
+        await sendPushNotification(participantId, {
+          title: `${populatedMessage.sender.name || populatedMessage.sender.username} sent a message`,
+          body: pushBody,
+          icon: '/logo.png',
+          data: {
+            url: `/home?chat=${chatId}`,
+            chatId,
+          },
+        });
+      }
+    }
 
     res.status(201).json(populatedMessage);
   } catch (error) {

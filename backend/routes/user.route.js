@@ -1,5 +1,6 @@
 import express from "express";
 import { getCurrentUser, updateProfile, getAllUsers } from "../controllers/user.controller.js";
+import { getPublicVapidKey, subscribePush, unsubscribePush } from "../controllers/notifications.controller.js";
 import isAuth from "../middlewares/isAuth.js";
 import { upload } from "../middlewares/multer.js";
 import User from "../models/user.model.js";
@@ -8,6 +9,9 @@ const userRouter = express.Router();
 
 userRouter.get("/current", isAuth, getCurrentUser);
 userRouter.get("/all", isAuth, getAllUsers);
+userRouter.get("/notifications/public-key", isAuth, getPublicVapidKey);
+userRouter.post("/notifications/subscribe", isAuth, subscribePush);
+userRouter.post("/notifications/unsubscribe", isAuth, unsubscribePush);
 userRouter.post("/profile", isAuth, upload.single("image"), updateProfile);
 
 // Search users

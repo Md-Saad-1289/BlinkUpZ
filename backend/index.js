@@ -9,6 +9,7 @@ import cors from "cors";
 import userRouter from "./routes/user.route.js";
 import chatRouter from "./routes/chat.js";
 import User from "./models/user.model.js";
+import Chat from "./models/chat.model.js";
 import Message from "./models/message.model.js";
 import { createServer } from "http";
 import { Server } from "socket.io";
@@ -64,6 +65,7 @@ io.on('connection', (socket) => {
   // User goes online
   socket.on('go_online', async (userId) => {
     socket.userId = userId;
+    socket.join(userId);
 
     if (!userSocketMap.has(userId)) {
       userSocketMap.set(userId, new Set());
@@ -92,10 +94,28 @@ io.on('connection', (socket) => {
     console.log(`User ${socket.id} left chat ${chatId}`);
   });
 
-  socket.on('send_message', (data) => {
+  socket.on('send_message', async (data) => {
     const { chatId, message, senderId } = data;
-    // Broadcast to everyone EXCEPT the sender (who already has it locally)
     socket.to(chatId).emit('receive_message', message);
+
+    try {
+      const chat = await Chat.findById(chatId).select('participants');
+      if (chat && Array.isArray(chat.participants)) {
+        const notificationPayload = {
+          message,
+          chatId,
+        };
+
+        chat.participants.forEach((participantId) => {
+          const participantString = participantId.toString();
+          if (participantString !== senderId) {
+            socket.to(participantString).emit('new_message_notification', notificationPayload);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error broadcasting new_message_notification:', error);
+    }
   });
 
   // Mark message(s) as seen
