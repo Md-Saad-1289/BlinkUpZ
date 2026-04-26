@@ -6,7 +6,7 @@ import { addMessage, setReplyingTo } from "../redux/chatSlice";
 import {
   FaPaperPlane, FaImage, FaXmark, FaReply,
   FaFaceSmile, FaMicrophone, FaStop,
-  FaLock
+  FaLock, FaBolt
 } from "react-icons/fa6";
 import EmojiPicker from 'emoji-picker-react';
 
@@ -15,6 +15,39 @@ import EmojiPicker from 'emoji-picker-react';
 const QUICK_EMOJIS = ["🤣", "❤️", "👍", "😢", "😤", "😍", "🙄", "💀"];
 const MAX_RECENT = 8;
 const RECENT_KEY = "chat_recent_emojis";
+
+const GAME_PROMPTS = [
+  // Mix (Bangla + English + Fun)
+
+  "Ek line e golpo start koro 😄",
+  "Send only emojis for the next reply 😆🔥",
+  "Ajker mood ekta emoji diye bolo 🙂",
+  "Share your funniest movie quote 😂",
+  "Amake ekta funny nickname dao 😜",
+  "Describe your day in 3 words 📅",
+  "Time machine thakle kothay jete? ⏳",
+  "Ask a question using a rhyme 🎤",
+  "Ekta weird but tasty food combo bolo 🍕🍫",
+  "Tell me one thing that made you smile 😊",
+
+  "Next 3 reply sudhu emoji diye dite hobe 😈",
+  "Write a two-word poem ✍️",
+  "Tomar current vibe kon emoji? 🔥",
+  "Turn the last message into a joke 😄",
+  "2 ta truth + 1 ta lie bolo — ami guess korbo 😏",
+
+  "Pick a song and tell me why it fits your day 🎧",
+  "Ekta choto mystery line likho 🕵️‍♂️",
+  "Reply with the first thing on your desk 🧑‍💻",
+  "Voice style e likho (like you’re shouting) 🔊",
+  "Tomar life movie hole naam ki hoto? 🎬",
+
+  "Send a tiny dare: emoji/GIF use koro 😆",
+  "3 word e ideal weekend describe koro 🌴",
+  "Ekta superpower choose koro 🦸‍♂️",
+  "Share one wish for this week 🌟",
+  "Last message ke savage joke e convert koro 😆🔥"
+];
 
 const loadRecentEmojis = () => {
   try {
@@ -82,7 +115,7 @@ const formatTime = (secs) =>
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-const MessageInput = () => {
+const MessageInput = ({ sendGamePrompt }) => {
   const [content, setContent] = useState("");
   const [uploading, setUploading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -205,6 +238,13 @@ const MessageInput = () => {
 
   const handleQuickEmoji = (emoji) => {
     insertEmoji(emoji);
+  };
+
+  const handleRandomGamePrompt = () => {
+    if (!GAME_PROMPTS.length || typeof sendGamePrompt !== 'function') return;
+
+    const randomPrompt = GAME_PROMPTS[Math.floor(Math.random() * GAME_PROMPTS.length)];
+    sendGamePrompt(randomPrompt);
   };
 
   // ── Image upload ─────────────────────────────────────────────────────────
@@ -613,7 +653,16 @@ const MessageInput = () => {
             className="hidden"
           />
 
-          <div className="flex-1">
+          <div className="relative flex-shrink-0 mb-0.5">
+            <button
+              type="button"
+                onClick={handleRandomGamePrompt}
+                disabled={uploading || isRecording}
+                className="p-2 sm:p-2.5 text-slate-400 hover:text-amber-300 hover:bg-slate-800/60 transition rounded-xl disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                title="Send a random chat game prompt"
+              >
+                <FaBolt className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
             <textarea
               ref={textareaRef}
               value={content}

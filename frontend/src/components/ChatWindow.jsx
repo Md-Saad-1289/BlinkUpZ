@@ -34,34 +34,6 @@ const groupMessagesByDate = (messages) => {
   return groups;
 };
 
-const GAME_PROMPTS = [
-  "Continue this story in one sentence.",
-  "Send only emojis for the next reply.",
-  "Share your funniest movie quote.",
-  "Describe your day with one emoji.",
-  "Ask a question using a rhyme.",
-  "Tell me one thing that made you smile today.",
-  "Create a secret handshake using emojis.",
-  "Invent a silly nickname for the other person.",
-  "Share a one-line mystery sentence.",
-  "What would be the title of your life movie?",
-  "Send a food combination that sounds wild but delicious.",
-  "Describe your mood with a color and an emoji.",
-  "Write a quick two-word poem.",
-  "Tell me one fictional superpower you wish you had.",
-  "Share a weird but true fact.",
-  "If you had a time machine, where would you go?",
-  "Reply with the first thing on your desk.",
-  "Pick a song and tell me why it fits your day.",
-  "Send a friendly challenge: two truths and a lie.",
-  "Describe your ideal weekend in three words.",
-  "Name a movie best watched with friends.",
-  "Send a tiny dare: use a GIF or emoji response.",
-  "What emoji would represent your current vibe?",
-  "Share one wish you have for this week.",
-  "Turn the last message into a joke.",
-];
-
 const ChatWindow = () => {
   const dispatch = useDispatch();
   const socket = useSocket();
@@ -71,7 +43,6 @@ const ChatWindow = () => {
   const [viewingImage, setViewingImage] = useState(null);
   const [editingMessage, setEditingMessage] = useState(null);
   const [showMessageMenu, setShowMessageMenu] = useState(null); // messageId for menu
-  const [showGamePromptMenu, setShowGamePromptMenu] = useState(false);
   const [typingUsers, setTypingUsers] = useState([]); // Array of {userId, userName}
   const [isWindowFocused, setIsWindowFocused] = useState(true);
 
@@ -112,7 +83,6 @@ const ChatWindow = () => {
 
   const sendGamePrompt = async (prompt) => {
     if (!currentChat) return;
-    setShowGamePromptMenu(false);
 
     try {
       const content = `✨ Game Prompt: ${prompt}`;
@@ -135,7 +105,6 @@ const ChatWindow = () => {
   const handlePromptCardClick = (message) => {
     if (!message) return;
     dispatch(setReplyingTo(message));
-    setShowGamePromptMenu(false);
   };
 
   // Get other participant
@@ -368,49 +337,7 @@ const ChatWindow = () => {
               </p>
             </div>
           </div>
-          <div className="relative flex items-center gap-0.5 sm:gap-1.5">
-            <button
-              type="button"
-              onClick={() => setShowGamePromptMenu((prev) => !prev)}
-              className="p-2 sm:p-3 hover:bg-slate-700/50 rounded-lg sm:rounded-xl transition text-slate-400 hover:text-amber-300 hover:shadow-lg hover:shadow-amber-500/10"
-              title="Chat Game Prompt"
-            >
-              <FaBolt className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-            {showGamePromptMenu && (
-              <div className="absolute right-0 top-full mt-2 w-72 bg-slate-900/95 border border-slate-700 rounded-3xl shadow-2xl shadow-black/40 p-3 z-50">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.24em] text-amber-300 font-semibold">
-                      Game prompt
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-1">
-                      Pick one to spark the conversation.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowGamePromptMenu(false)}
-                    className="text-slate-400 hover:text-white"
-                  >
-                    ✕
-                  </button>
-                </div>
-                <div className="grid gap-2">
-                  {GAME_PROMPTS.map((prompt, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onClick={() => sendGamePrompt(prompt)}
-                      className="text-left px-3 py-2 rounded-2xl border border-slate-700 bg-slate-950/90 text-slate-200 hover:bg-slate-800 hover:border-amber-400 transition"
-                    >
-                      <span className="block text-sm font-medium">{prompt}</span>
-                      <span className="text-[11px] text-slate-500 mt-1 block">Tap to send this prompt into chat</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+          <div className="flex items-center gap-0.5 sm:gap-1.5">
             <button className="p-2 sm:p-3 hover:bg-slate-700/50 rounded-lg sm:rounded-xl transition text-slate-400 hover:text-cyan-400 hover:shadow-lg hover:shadow-cyan-500/10">
               <FaPhone className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
@@ -684,7 +611,7 @@ const ChatWindow = () => {
 
       {/* Message Input */}
       <div className="flex-shrink-0">
-        <MessageInput />
+        <MessageInput sendGamePrompt={sendGamePrompt} />
       </div>
 
       {/* Image Viewer Modal */}
