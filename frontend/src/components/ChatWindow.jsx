@@ -6,7 +6,8 @@ import useGetMessages from "../Hooks/useGetMessages";
 import MessageInput from "./MessageInput";
 import ImageViewer from "./ImageViewer";
 import AudioPlayer from "./AudioPlayer";
-import { FaPhone, FaVideo, FaEllipsisVertical, FaCheck, FaCheckDouble, FaReply, FaTrash, FaPencil } from "react-icons/fa6";
+import parseMessageContent from "../utils/richText";
+import { FaPhone, FaVideo, FaEllipsisVertical, FaCheck, FaCheckDouble, FaReply, FaTrash, FaPencil, FaBolt } from "react-icons/fa6";
 import axios from "axios";
 import { serverUrl } from "../config";
 
@@ -432,12 +433,12 @@ const ChatWindow = () => {
                           isOwn
                             ? "bg-cyan-500 text-white rounded-br-md ml-12"
                             : "bg-slate-700 text-slate-100 rounded-bl-md mr-12"
-                        }`}
+                        } ${message.isHighlighted ? "border border-amber-400/20 bg-amber-400/10 shadow-[0_0_0_1px_rgba(245,158,11,0.35)]" : ""}`}
                       >
                         {message.isHighlighted && (
-                          <span className="absolute -top-3 right-2 inline-flex items-center gap-1 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/50 px-2 py-1 text-[10px] uppercase tracking-[0.12em] font-semibold shadow-sm">
-                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-300" />
-                            {message.highlightReason || 'Priority'}
+                          <span className="absolute -top-3 right-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-transparent text-amber-100 border border-amber-300/30 px-2 py-1 text-[10px] uppercase tracking-[0.14em] font-semibold shadow-sm shadow-amber-500/20 backdrop-blur-sm">
+                            <FaBolt className="w-3 h-3 text-amber-300" />
+                            {message.highlightReason ? message.highlightReason.toUpperCase() : 'PRIORITY'}
                           </span>
                         )}
                         {/* Deleted message */}
@@ -460,10 +461,10 @@ const ChatWindow = () => {
                         ) : message.messageType === "audio" ? (
                           <AudioPlayer src={message.content} isOwn={isOwn} />
                         ) : (
-                          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                            {message.content}
+                          <div className="text-sm leading-relaxed whitespace-pre-wrap break-words text-slate-100">
+                            {parseMessageContent(message.content)}
                             {message.edited && <span className="text-xs ml-1 opacity-70">(edited)</span>}
-                          </p>
+                          </div>
                         )}
 
                         {/* Subtle shine effect for own messages */}

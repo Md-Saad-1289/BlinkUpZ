@@ -4,7 +4,7 @@ import { setCurrentChat } from "../redux/chatSlice";
 import useGetChats from "../Hooks/useGetChats";
 import UserList from "./UserList";
 import api from '../api.js'
-import { FaPlus, FaComments } from "react-icons/fa6";
+import { FaPlus, FaComments, FaBolt } from "react-icons/fa6";
 
 // Format time to show relative or absolute time
 const formatMessageTime = (dateString) => {
@@ -101,7 +101,7 @@ const ChatList = () => {
                     isActive 
                       ? "bg-gradient-to-r from-cyan-500/20 to-transparent border-l-4 border-cyan-500" 
                       : "hover:bg-slate-800/40 border-l-4 border-transparent"
-                  }`}
+                  } ${chat.lastMessage?.isHighlighted ? 'bg-amber-500/10 border-amber-400/20 hover:bg-amber-500/15' : ''}`}
                 >
                   <div className="flex items-center gap-2 sm:gap-3">
                     <div className="relative flex-shrink-0">
@@ -122,9 +122,9 @@ const ChatList = () => {
                             {otherParticipant?.name || otherParticipant?.username}
                           </h3>
                           {chat.lastMessage?.isHighlighted && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-amber-400/20 bg-amber-400/10 text-[9px] text-amber-300 uppercase tracking-[0.08em] font-semibold mt-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-300" />
-                              {chat.lastMessage.highlightReason || 'Priority'}
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-amber-300/20 bg-amber-400/10 text-[9px] text-amber-100 uppercase tracking-[0.1em] font-semibold mt-1 shadow-sm shadow-amber-500/10">
+                              <FaBolt className="w-3 h-3 text-amber-300" />
+                              {chat.lastMessage.highlightReason ? chat.lastMessage.highlightReason.toUpperCase() : 'PRIORITY'}
                             </span>
                           )}
                         </div>
