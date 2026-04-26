@@ -132,6 +132,12 @@ const ChatWindow = () => {
     }
   };
 
+  const handlePromptCardClick = (message) => {
+    if (!message) return;
+    dispatch(setReplyingTo(message));
+    setShowGamePromptMenu(false);
+  };
+
   // Get other participant
   const otherParticipant = currentChat?.participants?.find(
     (p) => p._id !== userData?._id
@@ -535,7 +541,11 @@ const ChatWindow = () => {
                           </span>
                         )}
                         {message.content?.startsWith("✨ Game Prompt:") ? (
-                          <div className="rounded-3xl border border-amber-400/20 bg-gradient-to-br from-amber-500/10 via-slate-900/70 to-slate-900 shadow-[0_20px_50px_-30px_rgba(245,158,11,0.65)] p-4">
+                          <button
+                            type="button"
+                            onClick={() => handlePromptCardClick(message)}
+                            className="w-full text-left rounded-3xl border border-amber-400/20 bg-gradient-to-br from-amber-500/10 via-slate-900/70 to-slate-900 shadow-[0_20px_50px_-30px_rgba(245,158,11,0.65)] p-4 transition hover:-translate-y-0.5 hover:bg-amber-500/20"
+                          >
                             <div className="flex items-center gap-2 mb-2 text-amber-200">
                               <FaBolt className="w-4 h-4" />
                               <span className="text-xs uppercase tracking-[0.24em]">Game Prompt</span>
@@ -544,9 +554,9 @@ const ChatWindow = () => {
                               {message.content.replace("✨ Game Prompt:", "").trim()}
                             </p>
                             <div className="mt-3 text-[11px] text-amber-100/80">
-                              Tap to answer or keep the fun going.
+                              Tap to answer this prompt and start playing.
                             </div>
-                          </div>
+                          </button>
                         ) : message.deleted ? (
                           <p className="text-sm italic text-slate-400 opacity-60">
                             <span className="line-through">This message was deleted</span>
