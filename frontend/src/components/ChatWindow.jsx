@@ -434,6 +434,12 @@ const ChatWindow = () => {
                             : "bg-slate-700 text-slate-100 rounded-bl-md mr-12"
                         }`}
                       >
+                        {message.isHighlighted && (
+                          <span className="absolute -top-3 right-2 inline-flex items-center gap-1 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/50 px-2 py-1 text-[10px] uppercase tracking-[0.12em] font-semibold shadow-sm">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-300" />
+                            {message.highlightReason || 'Priority'}
+                          </span>
+                        )}
                         {/* Deleted message */}
                         {message.deleted ? (
                           <p className="text-sm italic text-slate-400 opacity-60">

@@ -20,6 +20,18 @@ const messageSchema = new mongoose.Schema({
     enum: ["text", "image", "file", "audio"],
     default: "text"
   },
+  isHighlighted: {
+    type: Boolean,
+    default: false
+  },
+  highlightTags: {
+    type: [String],
+    default: []
+  },
+  highlightReason: {
+    type: String,
+    default: ""
+  },
   replyTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Message",

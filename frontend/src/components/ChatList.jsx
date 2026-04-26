@@ -116,10 +116,18 @@ const ChatList = () => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold text-xs sm:text-sm text-slate-100 truncate">
-                          {otherParticipant?.name || otherParticipant?.username}
-                        </h3>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-xs sm:text-sm text-slate-100 truncate">
+                            {otherParticipant?.name || otherParticipant?.username}
+                          </h3>
+                          {chat.lastMessage?.isHighlighted && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-amber-400/20 bg-amber-400/10 text-[9px] text-amber-300 uppercase tracking-[0.08em] font-semibold mt-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-300" />
+                              {chat.lastMessage.highlightReason || 'Priority'}
+                            </span>
+                          )}
+                        </div>
                         <span className={`text-[9px] sm:text-[10px] font-medium ${isOnline ? 'text-green-400' : 'text-slate-500'}`}>
                           {isOnline ? 'Online' : formatMessageTime(chat.lastMessage?.createdAt || chat.updatedAt)}
                         </span>

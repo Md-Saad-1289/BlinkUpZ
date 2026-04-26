@@ -4,6 +4,52 @@ import User from "../models/user.model.js";
 import uploadOnCloudinary from "../config/cloudinary.js";
 import { sendPushNotification } from "../utils/push.js";
 
+const HIGHLIGHT_KEYWORDS = [
+  "urgent",
+  "asap",
+  "important",
+  "meeting",
+  "deadline",
+  "reminder",
+  "follow up",
+  "please reply",
+  "action required",
+  "alert",
+  "issue"
+];
+
+const normalizeKeyword = (keyword) => keyword.toLowerCase().replace(/^(\$\$)/, "");
+
+const detectMessageHighlight = (content) => {
+  if (!content || typeof content !== "string") {
+    return { isHighlighted: false, highlightTags: [], highlightReason: "" };
+  }
+
+  const normalized = content.toLowerCase();
+  const matchedKeywords = HIGHLIGHT_KEYWORDS.filter((keyword) => normalized.includes(keyword));
+
+  const mentionMatches = Array.from(new Set(
+    (normalized.match(/\$\$([a-z0-9_ ]+)/g) || [])
+      .map((tag) => normalizeKeyword(tag.trim()))
+  ));
+
+  const matchedMentions = mentionMatches.filter((mention) => 
+    HIGHLIGHT_KEYWORDS.some((keyword) => normalizeKeyword(keyword) === mention)
+  );
+
+  const uniqueTags = Array.from(new Set([...matchedKeywords, ...matchedMentions]));
+
+  if (uniqueTags.length === 0) {
+    return { isHighlighted: false, highlightTags: [], highlightReason: "" };
+  }
+
+  return {
+    isHighlighted: true,
+    highlightTags: uniqueTags,
+    highlightReason: uniqueTags[0].replace(/^@/, "")
+  };
+};
+
 // Get all chats for a user
 export const getChats = async (req, res) => {
   try {
@@ -138,12 +184,15 @@ export const sendMessage = async (req, res) => {
       messageTypeFinal = audioFile ? "audio" : "image";
     }
 
+    const highlightData = messageTypeFinal === "text" ? detectMessageHighlight(messageContent) : { isHighlighted: false, highlightTags: [], highlightReason: "" };
+
     const message = await Message.create({
       chat: chatId,
       sender: userId,
       content: messageContent,
       messageType: messageTypeFinal,
-      replyTo: replyTo || null
+      replyTo: replyTo || null,
+      ...highlightData
     });
 
     // Update chat's last message
@@ -276,6 +325,12 @@ export const editMessage = async (req, res) => {
     message.content = content;
     message.edited = true;
     message.editedAt = new Date();
+
+    const highlightData = detectMessageHighlight(content);
+    message.isHighlighted = highlightData.isHighlighted;
+    message.highlightTags = highlightData.highlightTags;
+    message.highlightReason = highlightData.highlightReason;
+
     await message.save();
 
     const populatedMessage = await Message.findById(messageId)
