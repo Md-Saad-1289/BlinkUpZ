@@ -635,13 +635,13 @@ const MessageInput = ({ sendGamePrompt }) => {
         onSubmit={handleSubmit}
         className="px-2 sm:px-4 py-3 border-t border-slate-700/30 bg-slate-900/90 backdrop-blur-xl"
       >
-        <div className="flex gap-2 items-end">
-          <div className="flex flex-1 items-center gap-2 px-3 py-2.5 bg-slate-900/95 border border-slate-700/50 rounded-3xl shadow-inner shadow-black/20 min-h-[56px]">
+        <div className="flex gap-2 items-center">
+          <div className="flex flex-1 items-center gap-2 px-2 py-2 bg-slate-950/95 rounded-2xl min-h-[52px]">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading || isRecording}
-              className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/70 transition rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed"
+              className="p-2 text-slate-400 hover:text-cyan-300 hover:bg-slate-800/60 transition rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed"
               title="Send image"
             >
               <FaImage className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -657,10 +657,10 @@ const MessageInput = ({ sendGamePrompt }) => {
               type="button"
               onClick={handleRandomGamePrompt}
               disabled={uploading || isRecording}
-              className="p-2 text-slate-400 hover:text-amber-300 hover:bg-slate-800/70 transition rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex h-10 w-10 items-center justify-center text-slate-400 hover:text-amber-300 hover:bg-slate-800/60 transition rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed"
               title="Send a random chat game prompt"
             >
-              <FaBolt className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="text-lg leading-none">⚡</span>
             </button>
             <div className="flex-1 min-w-0">
               <textarea
@@ -671,7 +671,7 @@ const MessageInput = ({ sendGamePrompt }) => {
                 placeholder={isRecording ? "Recording…" : "Type a message…"}
                 rows={1}
                 disabled={isRecording}
-                className="w-full resize-none px-4 py-3 rounded-3xl bg-slate-800/80 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:bg-slate-800/95 transition-all border border-slate-700/60 text-sm leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed max-h-32 overflow-y-auto"
+                className="w-full resize-none px-4 py-3 rounded-2xl bg-slate-900 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/25 focus:bg-slate-900/95 transition-all text-sm leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed max-h-32 overflow-y-auto"
                 style={{ fieldSizing: "content" }}
               />
             </div>
@@ -686,7 +686,7 @@ const MessageInput = ({ sendGamePrompt }) => {
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               disabled={uploading}
-              className={`relative p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/70 transition rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed select-none ${
+              className={`relative p-2 text-slate-400 hover:text-cyan-300 hover:bg-slate-800/60 transition rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed select-none ${
                 isRecording
                   ? "text-white bg-red-500 shadow-lg shadow-red-500/40"
                   : ""
