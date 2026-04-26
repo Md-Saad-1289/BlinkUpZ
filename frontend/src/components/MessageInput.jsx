@@ -633,50 +633,48 @@ const MessageInput = ({ sendGamePrompt }) => {
       {/* Main input row */}
       <form
         onSubmit={handleSubmit}
-        className="px-2 sm:px-4 py-2 sm:py-3 border-t border-slate-700/30 bg-slate-900/80 backdrop-blur-xl"
+        className="px-2 sm:px-4 py-3 border-t border-slate-700/30 bg-slate-900/90 backdrop-blur-xl"
       >
         <div className="flex gap-2 items-end">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading || isRecording}
-            className="p-2 sm:p-2.5 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60 transition rounded-xl disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 mb-0.5"
-            title="Send image"
-          >
-            <FaImage className="w-4 h-4 sm:w-5 sm:h-5" />
-          </button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImageSelect}
-            accept="image/*"
-            className="hidden"
-          />
-
-          <div className="relative flex-shrink-0 mb-0.5">
+          <div className="flex flex-1 items-center gap-2 px-3 py-2.5 bg-slate-900/95 border border-slate-700/50 rounded-3xl shadow-inner shadow-black/20 min-h-[56px]">
             <button
               type="button"
-                onClick={handleRandomGamePrompt}
-                disabled={uploading || isRecording}
-                className="p-2 sm:p-2.5 text-slate-400 hover:text-amber-300 hover:bg-slate-800/60 transition rounded-xl disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
-                title="Send a random chat game prompt"
-              >
-                <FaBolt className="w-4 h-4 sm:w-5 sm:h-5" />
-              </button>
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder={isRecording ? "Recording…" : "Type a message…"}
-              rows={1}
-              disabled={isRecording}
-              className="w-full resize-none px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-slate-800/60 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:bg-slate-800/80 transition-all border border-slate-700/50 text-sm leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed max-h-32 overflow-y-auto"
-              style={{ fieldSizing: "content" }}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading || isRecording}
+              className="p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/70 transition rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Send image"
+            >
+              <FaImage className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImageSelect}
+              accept="image/*"
+              className="hidden"
             />
-          </div>
-
-          <div className="relative flex-shrink-0 mb-0.5">
+            <button
+              type="button"
+              onClick={handleRandomGamePrompt}
+              disabled={uploading || isRecording}
+              className="p-2 text-slate-400 hover:text-amber-300 hover:bg-slate-800/70 transition rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Send a random chat game prompt"
+            >
+              <FaBolt className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+            <div className="flex-1 min-w-0">
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder={isRecording ? "Recording…" : "Type a message…"}
+                rows={1}
+                disabled={isRecording}
+                className="w-full resize-none px-4 py-3 rounded-3xl bg-slate-800/80 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 focus:bg-slate-800/95 transition-all border border-slate-700/60 text-sm leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed max-h-32 overflow-y-auto"
+                style={{ fieldSizing: "content" }}
+              />
+            </div>
             <button
               ref={micButtonRef}
               type="button"
@@ -688,10 +686,10 @@ const MessageInput = ({ sendGamePrompt }) => {
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               disabled={uploading}
-              className={`relative p-2 sm:p-2.5 transition-all rounded-xl disabled:opacity-40 disabled:cursor-not-allowed select-none ${
+              className={`relative p-2 text-slate-400 hover:text-cyan-400 hover:bg-slate-800/70 transition rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed select-none ${
                 isRecording
                   ? "text-white bg-red-500 shadow-lg shadow-red-500/40"
-                  : "text-slate-400 hover:text-cyan-400 hover:bg-slate-800/60"
+                  : ""
               }`}
               title={isRecording ? "Recording… release to send, slide up to cancel" : "Hold to record voice message"}
             >
@@ -701,111 +699,6 @@ const MessageInput = ({ sendGamePrompt }) => {
                 <FaMicrophone className="w-4 h-4 sm:w-5 sm:h-5" />
               )}
             </button>
-
-            {isRecording && (
-              <span className="absolute inset-0 rounded-xl bg-red-500/30 animate-ping pointer-events-none" />
-            )}
-
-            {isRecording && !isLocked && (
-              <div
-                className="absolute bottom-full left-1/2 pointer-events-none"
-                style={{
-                  transform: `translateX(-50%) translateY(${-8 - dragOffset * 0.6}px)`,
-                  transition: isDragging ? "none" : "transform 0.2s",
-                }}
-              >
-                <div
-                  className={`flex flex-col items-center gap-1.5 px-3 py-2.5 rounded-2xl border backdrop-blur-md transition-all ${
-                    isDragging
-                      ? "bg-red-600/90 border-red-400 text-white"
-                      : "bg-slate-800/90 border-slate-600/60 text-slate-300"
-                  }`}
-                >
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                      isDragging ? "bg-white/20 scale-110" : "bg-slate-600/40"
-                    }`}
-                  >
-                    {isDragging ? (
-                      <FaXmark className="w-5 h-5" />
-                    ) : (
-                      <FaMicrophone className="w-4 h-4" />
-                    )}
-                  </div>
-                  <span className="text-[11px] font-medium whitespace-nowrap">
-                    {isDragging ? "Release to cancel" : "Slide up to cancel"}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {isRecording && dragOffset > 70 && !isLocked && (
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-28 pointer-events-none">
-                <div className="flex flex-col items-center gap-1 px-2 py-1.5 rounded-xl bg-cyan-500/90 border border-cyan-400 text-white">
-                  <FaLock className="w-3 h-3" />
-                  <span className="text-[10px] font-medium">Lock</span>
-                </div>
-              </div>
-            )}
-
-            {isLocked && (
-              <div className="absolute bottom-full right-0 mb-3 pointer-events-auto">
-                <div className="flex flex-col items-center gap-3 p-3 rounded-2xl bg-slate-800/95 border border-slate-600/60 backdrop-blur-lg shadow-2xl min-w-[130px]">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-                    <span className="text-sm font-mono text-red-300 font-semibold tabular-nums">
-                      {formatTime(recordingTime)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-end gap-0.5 h-6">
-                    {Array.from({ length: 10 }, (_, i) => (
-                      <div
-                        key={i}
-                        className="w-1.5 rounded-full transition-all duration-75"
-                        style={{
-                          height: `${audioLevel > (i + 1) / 10 ? 100 : 30}%`,
-                          background: audioLevel > (i + 1) / 10
-                            ? `hsl(${180 - i * 12}, 80%, 60%)`
-                            : "rgba(100,120,140,0.35)",
-                        }}
-                      />
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={cancelRecording}
-                      className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-700/60 rounded-lg transition"
-                      title="Cancel"
-                    >
-                      <FaXmark className="w-3 h-3" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={pauseRecording}
-                      className="p-1.5 text-slate-400 hover:text-cyan-400 hover:bg-slate-700/60 rounded-lg transition"
-                      title={isRecordingPaused ? "Resume" : "Pause"}
-                    >
-                      {isRecordingPaused ? (
-                        <span className="text-[10px] font-bold">▶</span>
-                      ) : (
-                        <span className="text-[10px] font-bold">⏸</span>
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={stopRecording}
-                      className="p-1.5 bg-cyan-500 hover:bg-cyan-400 text-white rounded-lg transition shadow-md shadow-cyan-500/30"
-                      title="Send"
-                    >
-                      <FaPaperPlane className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           <button
