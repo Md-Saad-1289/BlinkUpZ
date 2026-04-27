@@ -15,6 +15,28 @@ import EmojiPicker from 'emoji-picker-react';
 const QUICK_EMOJIS = ["🤣", "❤️", "👍", "😢", "😤", "😍", "🙄", "💀"];
 const MAX_RECENT = 8;
 const RECENT_KEY = "chat_recent_emojis";
+const TENOR_API_KEY = "LIVDSRZULELA";
+const TENOR_SEARCH_URL = "https://g.tenor.com/v1/search";
+const TENOR_TRENDING_URL = "https://g.tenor.com/v1/trending";
+
+const STICKER_PACKS = [
+  {
+    title: "Mood Boost",
+    stickers: ["🎉", "🥰", "✨", "💫", "🌈"],
+  },
+  {
+    title: "Cozy Vibes",
+    stickers: ["☕", "🧸", "📚", "🕯️", "🍵"],
+  },
+  {
+    title: "Party Mode",
+    stickers: ["🥳", "🎊", "🎂", "🍾", "🎶"],
+  },
+  {
+    title: "Support Pack",
+    stickers: ["🤗", "💪", "🌟", "🤝", "🧡"],
+  },
+];
 
 const GAME_PROMPTS = [
   // Mix (Bangla + English + Fun)
@@ -63,7 +85,15 @@ const saveRecentEmojis = (list) => {
   } catch {}
 };
 
-const EmojiPeekBar = ({ onSelect, onTogglePicker, showPicker }) => {
+const EmojiPeekBar = ({
+  selectedEmojis,
+  onToggleSelection,
+  onInsertSelection,
+  onClearSelection,
+  onTogglePicker,
+  activeMediaTab,
+  showPicker,
+}) => {
   const [recent, setRecent] = useState(loadRecentEmojis);
 
   const handleSelect = (emoji) => {
@@ -72,7 +102,7 @@ const EmojiPeekBar = ({ onSelect, onTogglePicker, showPicker }) => {
       saveRecentEmojis(next);
       return next;
     });
-    onSelect(emoji);
+    onToggleSelection(emoji);
   };
 
   const displayEmojis = recent.length > 0
@@ -80,30 +110,74 @@ const EmojiPeekBar = ({ onSelect, onTogglePicker, showPicker }) => {
     : QUICK_EMOJIS;
 
   return (
-    <div className="flex items-center gap-1 px-1">
-      {displayEmojis.map((emoji, i) => (
+    <div className="w-full">
+      <div className="flex items-center gap-1 px-1">
+        {displayEmojis.map((emoji, i) => {
+          const isSelected = selectedEmojis.includes(emoji);
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => handleSelect(emoji)}
+              className={`text-lg leading-none p-1 rounded-lg transition-all active:scale-90 select-none ${isSelected ? 'bg-cyan-500/20 text-cyan-200' : 'hover:bg-slate-700/60'}`}
+              title={emoji}
+            >
+              {emoji}
+            </button>
+          );
+        })}
         <button
-          key={i}
           type="button"
-          onClick={() => handleSelect(emoji)}
-          className="text-lg leading-none p-1 rounded-lg hover:bg-slate-700/60 transition-all active:scale-90 select-none"
-          title={emoji}
+          onClick={onTogglePicker}
+          className={`p-1.5 rounded-lg transition-all ${
+            showPicker
+              ? 'text-cyan-400 bg-cyan-500/20'
+              : 'text-slate-400 hover:text-cyan-400 hover:bg-slate-700/60'
+          }`}
+          title="More media"
         >
-          {emoji}
+          <FaFaceSmile className="w-4 h-4" />
         </button>
-      ))}
-      <button
-        type="button"
-        onClick={onTogglePicker}
-        className={`p-1.5 rounded-lg transition-all ${
-          showPicker
-            ? 'text-cyan-400 bg-cyan-500/20'
-            : 'text-slate-400 hover:text-cyan-400 hover:bg-slate-700/60'
-        }`}
-        title="More emojis"
-      >
-        <FaFaceSmile className="w-4 h-4" />
-      </button>
+      </div>
+
+      {selectedEmojis.length > 0 && (
+        <div className="mt-2 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-700/60 bg-slate-950/95 px-3 py-2">
+          <div className="flex flex-wrap gap-1">
+            {selectedEmojis.map((emoji, index) => (
+              <span
+                key={index}
+                className="text-lg px-2 py-1 rounded-lg bg-slate-800/80 text-white"
+              >
+                {emoji}
+              </span>
+            ))}
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClearSelection}
+              className="text-xs text-slate-400 hover:text-slate-100 transition px-2 py-1 rounded-lg border border-slate-700/80"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={onInsertSelection}
+              className="text-xs text-white bg-cyan-500 hover:bg-cyan-400 transition px-3 py-1 rounded-lg"
+            >
+              Add {selectedEmojis.length}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeMediaTab !== 'emoji' && (
+        <div className="mt-2 px-3 py-2 text-[11px] text-slate-500 rounded-2xl bg-slate-900/90 border border-slate-700/50">
+          {activeMediaTab === 'stickers'
+            ? 'Browse sticker packs for fast reactions and cute vibes.'
+            : 'Search GIFs for expressive replies — tap a result to insert its link.'}
+        </div>
+      )}
     </div>
   );
 };
@@ -119,7 +193,13 @@ const MessageInput = ({ sendGamePrompt }) => {
   const [content, setContent] = useState("");
   const [uploading, setUploading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showMediaPicker, setShowMediaPicker] = useState(false);
+  const [activeMediaTab, setActiveMediaTab] = useState("emoji");
+  const [selectedEmojis, setSelectedEmojis] = useState([]);
+  const [gifQuery, setGifQuery] = useState("");
+  const [gifResults, setGifResults] = useState([]);
+  const [gifLoading, setGifLoading] = useState(false);
+  const [gifError, setGifError] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [recordingError, setRecordingError] = useState(null);
@@ -179,7 +259,13 @@ const MessageInput = ({ sendGamePrompt }) => {
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [showEmojiPicker]);
+  }, [showMediaPicker]);
+
+  useEffect(() => {
+    if (activeMediaTab === "gifs" && gifResults.length === 0) {
+      fetchTrendingGifs();
+    }
+  }, [activeMediaTab]);
 
   // ── Typing indicators ────────────────────────────────────────────────────
 
@@ -236,8 +322,76 @@ const MessageInput = ({ sendGamePrompt }) => {
     insertEmoji(emojiData.emoji);
   };
 
-  const handleQuickEmoji = (emoji) => {
-    insertEmoji(emoji);
+  const toggleEmojiSelection = (emoji) => {
+    setSelectedEmojis((prev) =>
+      prev.includes(emoji)
+        ? prev.filter((item) => item !== emoji)
+        : [...prev, emoji]
+    );
+  };
+
+  const insertSelectedEmojis = () => {
+    if (!selectedEmojis.length) return;
+    insertEmoji(selectedEmojis.join(""));
+    setSelectedEmojis([]);
+  };
+
+  const clearSelectedEmojis = () => {
+    setSelectedEmojis([]);
+  };
+
+  const handleStickerSelect = (sticker) => {
+    insertEmoji(sticker);
+  };
+
+  const fetchGifs = async (query) => {
+    if (!query?.trim()) {
+      setGifResults([]);
+      return;
+    }
+
+    setGifLoading(true);
+    setGifError("");
+
+    try {
+      const url = `${TENOR_SEARCH_URL}?q=${encodeURIComponent(query)}&key=${TENOR_API_KEY}&limit=12&media_filter=minimal`;
+      const response = await fetch(url);
+      const data = await response.json();
+      setGifResults(data.results || []);
+    } catch (err) {
+      console.error("GIF search failed:", err);
+      setGifError("Unable to load GIFs. Please try again.");
+    } finally {
+      setGifLoading(false);
+    }
+  };
+
+  const fetchTrendingGifs = async () => {
+    setGifLoading(true);
+    setGifError("");
+
+    try {
+      const url = `${TENOR_TRENDING_URL}?key=${TENOR_API_KEY}&limit=12&media_filter=minimal`;
+      const response = await fetch(url);
+      const data = await response.json();
+      setGifResults(data.results || []);
+    } catch (err) {
+      console.error("Trending GIF load failed:", err);
+      setGifError("Unable to load trending GIFs.");
+    } finally {
+      setGifLoading(false);
+    }
+  };
+
+  const handleGifSearch = async (e) => {
+    e?.preventDefault();
+    await fetchGifs(gifQuery.trim() || "funny");
+  };
+
+  const handleGifSelect = (gifUrl) => {
+    insertEmoji(gifUrl);
+    setShowMediaPicker(false);
+    setGifQuery("");
   };
 
   const handleRandomGamePrompt = () => {
@@ -604,28 +758,133 @@ const MessageInput = ({ sendGamePrompt }) => {
         {!isRecording && (
           <div className="relative flex items-center">
             <EmojiPeekBar
-              onSelect={handleQuickEmoji}
-              onTogglePicker={() => setShowEmojiPicker(v => !v)}
-              showPicker={showEmojiPicker}
-            />
+            selectedEmojis={selectedEmojis}
+            onToggleSelection={toggleEmojiSelection}
+            onInsertSelection={insertSelectedEmojis}
+            onClearSelection={clearSelectedEmojis}
+            onTogglePicker={() => setShowMediaPicker((v) => !v)}
+            activeMediaTab={activeMediaTab}
+            showPicker={showMediaPicker}
+          />
 
-            {showEmojiPicker && (
-              <div
-                ref={emojiPickerRef}
-                className="absolute bottom-full left-0 mb-2 z-50 shadow-2xl shadow-black/40 rounded-2xl overflow-hidden"
-              >
-                <EmojiPicker
-                  onEmojiClick={handleEmojiClick}
-                  theme="dark"
-                  searchDisabled={false}
-                  width={300}
-                  height={380}
-                  lazyLoadEmojis
-                  skinTonesDisabled
-                  previewConfig={{ showPreview: false }}
-                />
+          {showMediaPicker && (
+            <div
+              ref={emojiPickerRef}
+              className="absolute bottom-full left-0 mb-2 z-50 w-full sm:w-[420px] shadow-2xl shadow-black/40 rounded-3xl overflow-hidden border border-slate-700/60 bg-slate-950"
+            >
+              <div className="flex items-center gap-1 border-b border-slate-700/60 bg-slate-900/95 px-3 py-2">
+                {[
+                  { id: "emoji", label: "Emoji" },
+                  { id: "stickers", label: "Stickers" },
+                  { id: "gifs", label: "GIFs" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveMediaTab(tab.id)}
+                    className={`text-sm font-medium px-3 py-2 rounded-2xl transition ${
+                      activeMediaTab === tab.id
+                        ? 'bg-cyan-500 text-slate-950'
+                        : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
               </div>
-            )}
+
+              <div className="max-h-[420px] overflow-hidden overflow-y-auto">
+                {activeMediaTab === "emoji" && (
+                  <EmojiPicker
+                    onEmojiClick={handleEmojiClick}
+                    theme="dark"
+                    searchDisabled={false}
+                    width="100%"
+                    height={380}
+                    lazyLoadEmojis
+                    skinTonesDisabled
+                    previewConfig={{ showPreview: false }}
+                  />
+                )}
+
+                {activeMediaTab === "stickers" && (
+                  <div className="space-y-4 p-3">
+                    {STICKER_PACKS.map((pack) => (
+                      <div key={pack.title} className="rounded-3xl border border-slate-700/60 bg-slate-900/90 p-3">
+                        <div className="flex items-center justify-between gap-2 mb-3">
+                          <p className="text-sm font-semibold text-slate-100">{pack.title}</p>
+                          <span className="text-[11px] text-slate-500">Quick reactions</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {pack.stickers.map((sticker) => (
+                            <button
+                              key={sticker}
+                              type="button"
+                              onClick={() => handleStickerSelect(sticker)}
+                              className="text-2xl w-14 h-14 rounded-2xl bg-slate-800/90 hover:bg-slate-700/90 transition flex items-center justify-center"
+                              title={`Insert ${sticker}`}
+                            >
+                              {sticker}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {activeMediaTab === "gifs" && (
+                  <div className="space-y-3 p-3">
+                    <form onSubmit={handleGifSearch} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={gifQuery}
+                        onChange={(e) => setGifQuery(e.target.value)}
+                        placeholder="Search GIFs..."
+                        className="flex-1 rounded-2xl border border-slate-700/80 bg-slate-900/95 px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-400"
+                      />
+                      <button
+                        type="submit"
+                        className="rounded-2xl bg-cyan-500 px-4 py-2 text-sm font-medium text-slate-950 hover:bg-cyan-400 transition"
+                      >
+                        Search
+                      </button>
+                    </form>
+                    {gifError && (
+                      <p className="text-xs text-rose-300">{gifError}</p>
+                    )}
+                    {gifLoading && (
+                      <p className="text-sm text-slate-400">Loading GIFs...</p>
+                    )}
+                    <div className="grid grid-cols-3 gap-2">
+                      {gifResults.map((item, index) => {
+                        const gifUrl = item.media?.[0]?.tinygif?.url || item.media?.[0]?.gif?.url || item.url;
+                        return (
+                          <button
+                            key={`${gifUrl || index}`}
+                            type="button"
+                            onClick={() => gifUrl && handleGifSelect(gifUrl)}
+                            className="group overflow-hidden rounded-2xl bg-slate-900/90 hover:bg-slate-800/95 transition"
+                            title="Insert GIF link"
+                          >
+                            {gifUrl ? (
+                              <img
+                                src={gifUrl}
+                                alt={item.title || "GIF"}
+                                className="h-24 w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-24 items-center justify-center text-slate-500">No preview</div>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           </div>
         )}
       </div>
