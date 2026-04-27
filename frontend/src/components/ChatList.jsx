@@ -41,7 +41,12 @@ const ChatList = () => {
         '/api/chat',
         { participantId: user._id }
       );
-      dispatch(setCurrentChat(res.data));
+      const chat = res?.data;
+      if (!chat || !chat._id) {
+        console.error("Invalid chat response from server:", chat);
+        return;
+      }
+      dispatch(setCurrentChat(chat));
     } catch (error) {
       console.error("Create chat failed:", error);
     }

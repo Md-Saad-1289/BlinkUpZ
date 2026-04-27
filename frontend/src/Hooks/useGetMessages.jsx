@@ -9,7 +9,14 @@ const useGetMessages = (chatId) => {
   const { messages } = useSelector((state) => state.chat);
 
   useEffect(() => {
-    if (!userData || !chatId) return;
+    if (!userData) return;
+
+    if (!chatId) {
+      dispatch(setMessages([]));
+      dispatch(setLoading(false));
+      dispatch(setError(null));
+      return;
+    }
 
     const fetchMessages = async () => {
       dispatch(setLoading(true));
@@ -19,6 +26,7 @@ const useGetMessages = (chatId) => {
       } catch (err) {
         console.error("Fetch messages failed:", err);
         dispatch(setError("Failed to load messages"));
+        dispatch(setMessages([]));
       } finally {
         dispatch(setLoading(false));
       }

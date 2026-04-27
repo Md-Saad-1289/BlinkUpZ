@@ -41,12 +41,14 @@ const ChatWindow = () => {
   const { userData, onlineUsers } = useSelector((state) => state.user);
   const messagesEndRef = useRef(null);
   const [viewingImage, setViewingImage] = useState(null);
+
+  const validChatId = currentChat && typeof currentChat._id === 'string' ? currentChat._id : null;
   const [editingMessage, setEditingMessage] = useState(null);
   const [showMessageMenu, setShowMessageMenu] = useState(null); // messageId for menu
   const [typingUsers, setTypingUsers] = useState([]); // Array of {userId, userName}
   const [isWindowFocused, setIsWindowFocused] = useState(true);
 
-  useGetMessages(currentChat?._id);
+  useGetMessages(validChatId);
 
   // Delete message function
   const handleDeleteMessage = async (messageId) => {
@@ -270,7 +272,7 @@ const ChatWindow = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  if (!currentChat) {
+  if (!validChatId) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-slate-400 bg-gradient-to-br from-slate-900 via-slate-900/50 to-slate-900/80 p-4">
         <div className="relative">
